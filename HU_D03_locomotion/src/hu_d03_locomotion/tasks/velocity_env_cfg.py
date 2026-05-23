@@ -185,7 +185,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     # ── Reward weights adjustments ────────────────────────────────────────
     cfg.rewards["foot_clearance"].weight = 0.0
-    cfg.rewards["action_rate_l2"].weight = -0.01
+    cfg.rewards["action_rate_l2"].weight = -0.05
+    cfg.rewards["soft_landing"].weight = -0.05
+    cfg.rewards["foot_slip"].weight = -0.05
     cfg.rewards["upright"].weight = 3.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
@@ -307,7 +309,9 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*wrist.*": 0.40,     r".*hand.*": 0.40, r".*head.*": 0.15,
     }
     cfg.rewards["foot_clearance"].weight = 0.0
-    cfg.rewards["action_rate_l2"].weight = -0.01
+    cfg.rewards["action_rate_l2"].weight = -0.05
+    cfg.rewards["soft_landing"].weight = -0.05
+    cfg.rewards["foot_slip"].weight = -0.05
     cfg.rewards["upright"].weight = 3.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
