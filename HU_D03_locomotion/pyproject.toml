@@ -15,5 +15,5 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/hu_d03_locomotion"]
 
-[tool.uv]
-dev-dependencies = ["ruff", "pyright"]
+[dependency-groups]
+dev = ["ruff", "pyright"]
