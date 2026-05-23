@@ -52,7 +52,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.mujoco.ccd_iterations = 200
     cfg.sim.contact_sensor_maxmatch = 64
     cfg.sim.nconmax = None          # auto
-    cfg.sim.mujoco.solver = "cg"    # Bypass Newton block_cholesky on Pascal GPUs
+    # cfg.sim.mujoco.solver = "cg"  # Chỉ dùng "cg" cho máy cá nhân cũ (Quadro P2000). Đã tắt để dùng Newton (T4/A100)
 
     # ── Robot ─────────────────────────────────────────────────────────────
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
@@ -228,7 +228,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
     cfg.sim.nconmax = 70
-    cfg.sim.mujoco.solver = "cg"
+    # cfg.sim.mujoco.solver = "cg"  # Tắt để dùng Newton mặc định cho T4
 
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
