@@ -3,7 +3,7 @@ name = "hu-d03-locomotion"
 version = "0.1.0"
 description = "Velocity tracking locomotion policy for HU_D03 humanoid robot using mjlab."
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["mjlab"]
 
 [tool.uv.sources]
 mjlab = { path = "../mjlab/mjlab-main", editable = true }
