@@ -187,6 +187,10 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
+    # Bóp chặt (Tighten) hàm mũ của thưởng vận tốc, chống lết (reward leaking)
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.25
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.25
+
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
     cfg.rewards["action_rate_l2"].weight = -0.01 # Giảm phạt l2 để dễ cử động hơn
     cfg.rewards["soft_landing"].weight = -0.05
@@ -218,10 +222,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "command_name": "twist",
             "velocity_stages": [
-                {"step": 0, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
-                {"step": 1000 * 8192, "lin_vel_x": (0.0, 0.6), "ang_vel_z": (0.0, 0.0)},
-                {"step": 2000 * 8192, "lin_vel_x": (0.0, 1.0), "ang_vel_z": (0.0, 0.0)},
-                {"step": 3000 * 8192, "lin_vel_x": (0.0, 1.2), "ang_vel_z": (0.0, 0.0)},
+                {"step": 0, "lin_vel_x": (0.0, 0.5), "ang_vel_z": (0.0, 0.0)},
+                {"step": 2000 * 24, "lin_vel_x": (0.0, 1.0), "ang_vel_z": (0.0, 0.0)},
+                {"step": 4000 * 24, "lin_vel_x": (0.0, 1.2), "ang_vel_z": (0.0, 0.0)},
             ],
         },
     )
