@@ -193,17 +193,18 @@ HU_D03_COLLISION = CollisionCfg(
 )
 
 # ---------------------------------------------------------------------------
-# Action scale  (= 0.25 * effort_limit / stiffness, same formula as G1)
+# Action scale (Using fixed rad scales to prevent high stiffness paralysis)
 # ---------------------------------------------------------------------------
 
 HU_D03_ACTION_SCALE: dict[str, float] = {}
 for _act in HU_D03_ARTICULATION.actuators:
     assert isinstance(_act, BuiltinPositionActuatorCfg)
-    _e = _act.effort_limit
-    _s = _act.stiffness
-    assert _e is not None
     for _n in _act.target_names_expr:
-        HU_D03_ACTION_SCALE[_n] = 0.25 * _e / _s
+        # Leg joints (hips, knees, ankles) and waist need realistic range (0.25 rad ≈ 14.3 deg)
+        if any(keyword in _n for keyword in ("hip", "knee", "achilles", "waist")):
+            HU_D03_ACTION_SCALE[_n] = 0.25
+        else:
+            HU_D03_ACTION_SCALE[_n] = 0.30
 
 
 # ---------------------------------------------------------------------------

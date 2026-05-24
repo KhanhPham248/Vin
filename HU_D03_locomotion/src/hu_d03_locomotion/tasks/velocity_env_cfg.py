@@ -222,19 +222,19 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
-    # Tighten velocity tracking standard deviation to prevent reward leaking and local optima convergence
-    cfg.rewards["track_linear_velocity"].params["std"] = 0.15
-    cfg.rewards["track_angular_velocity"].params["std"] = 0.25
+    # Nới rộng dải Gaussian để tăng tín hiệu Gradient trong giai đoạn đầu học đi
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.25
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.50
     cfg.rewards["track_linear_velocity"].weight = 3.0
 
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
-    cfg.rewards["action_rate_l2"].weight = -0.01 # Giảm phạt l2 để dễ cử động hơn
+    cfg.rewards["action_rate_l2"].weight = -0.05 # Tăng phạt để chống rung giật tần số cao
     cfg.rewards["soft_landing"].weight = -0.05
     cfg.rewards["foot_slip"].weight = -0.05
     cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02 # Trả về mức chuẩn của G1
-    cfg.rewards["air_time"].weight = 3.0   # Enabled to encourage stepping (HU-D03 needs this)
+    cfg.rewards["air_time"].weight = 1.0   # Giảm trọng số để tránh hack reward đập chân vô nghĩa
     cfg.rewards["air_time"].params["command_threshold"] = 0.1  # Fix: Kích hoạt thưởng bay chân ngay cả khi đi chậm (vận tốc > 0.1)
 
     # ── Self-collision penalty ─────────────────────────────────────────────
@@ -367,8 +367,8 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*shoulder.*": 0.10,  r".*elbow.*": 0.10,
         r".*wrist.*": 0.20,     r".*hand.*": 0.20, r".*head.*": 0.15,
     }
-    cfg.rewards["track_linear_velocity"].params["std"] = 0.15
-    cfg.rewards["track_angular_velocity"].params["std"] = 0.25
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.25
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.50
     cfg.rewards["foot_clearance"].weight = 0.0
     cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.05
@@ -376,7 +376,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
-    cfg.rewards["air_time"].weight = 3.0
+    cfg.rewards["air_time"].weight = 1.0
     cfg.rewards["air_time"].params["command_threshold"] = 0.1
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,

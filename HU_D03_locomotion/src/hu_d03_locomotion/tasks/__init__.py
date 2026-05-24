@@ -11,6 +11,16 @@ from hu_d03_locomotion.tasks.rl_cfg import (
     hu_d03_flat_ppo_runner_cfg,
     hu_d03_rough_ppo_runner_cfg,
 )
+from hu_d03_locomotion.tasks.velocity_unitree_env_cfg import (
+    hu_d03_flat_unitree_env_cfg,
+    hu_d03_rough_unitree_env_cfg,
+)
+from hu_d03_locomotion.tasks.rl_unitree_cfg import (
+    hu_d03_flat_unitree_ppo_runner_cfg,
+    hu_d03_rough_unitree_ppo_runner_cfg,
+)
+
+# ── Standard Tasks ──────────────────────────────────────────────────────────
 
 register_mjlab_task(
     task_id="Mjlab-Velocity-Flat-HuD03",
@@ -27,3 +37,22 @@ register_mjlab_task(
     rl_cfg=hu_d03_rough_ppo_runner_cfg(),
     runner_cls=VelocityOnPolicyRunner,
 )
+
+# ── Unitree-Style Tasks (For Side-by-Side Comparison) ───────────────────────
+
+register_mjlab_task(
+    task_id="Mjlab-Velocity-Flat-HuD03-Unitree",
+    env_cfg=hu_d03_flat_unitree_env_cfg(),
+    play_env_cfg=hu_d03_flat_unitree_env_cfg(play=True),
+    rl_cfg=hu_d03_flat_unitree_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
+)
+
+register_mjlab_task(
+    task_id="Mjlab-Velocity-Rough-HuD03-Unitree",
+    env_cfg=hu_d03_rough_unitree_env_cfg(),
+    play_env_cfg=hu_d03_rough_unitree_env_cfg(play=True),
+    rl_cfg=hu_d03_rough_unitree_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
+)
+

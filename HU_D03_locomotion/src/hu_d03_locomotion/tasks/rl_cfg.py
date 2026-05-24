@@ -43,6 +43,7 @@ def hu_d03_flat_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
         save_interval=50,
         num_steps_per_env=24,
         max_iterations=5_000,
+        wandb_project="hu_d03_locomotion",
     )
 
 
