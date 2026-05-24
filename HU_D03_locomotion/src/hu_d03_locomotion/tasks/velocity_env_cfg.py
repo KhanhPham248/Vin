@@ -219,9 +219,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "command_name": "twist",
             "velocity_stages": [
                 {"step": 0, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
-                {"step": 1000 * 1024, "lin_vel_x": (0.0, 0.6), "ang_vel_z": (0.0, 0.0)},
-                {"step": 2000 * 1024, "lin_vel_x": (0.0, 1.0), "ang_vel_z": (0.0, 0.0)},
-                {"step": 3000 * 1024, "lin_vel_x": (0.0, 1.2), "ang_vel_z": (0.0, 0.0)},
+                {"step": 1000 * 8192, "lin_vel_x": (0.0, 0.6), "ang_vel_z": (0.0, 0.0)},
+                {"step": 2000 * 8192, "lin_vel_x": (0.0, 1.0), "ang_vel_z": (0.0, 0.0)},
+                {"step": 3000 * 8192, "lin_vel_x": (0.0, 1.2), "ang_vel_z": (0.0, 0.0)},
             ],
         },
     )
