@@ -29,7 +29,6 @@ from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from hu_d03_locomotion.robots import HU_D03_ACTION_SCALE, get_hu_d03_robot_cfg
 
 
-# ---------------------------------------------------------------------------
 # Shared constants
 # ---------------------------------------------------------------------------
 
@@ -38,6 +37,28 @@ FOOT_SITE_NAMES = ("left_foot", "right_foot")
 
 # Foot geom names (single box per foot in HU_D03)
 FOOT_GEOM_NAMES = ("left_foot", "right_foot")
+
+# Controllable (actuated) joints for pose penalty (excludes passive ankle and rod joints)
+ACTUATED_JOINT_NAMES = (
+    r".*_hip_pitch_joint",
+    r".*_hip_roll_joint",
+    r".*_hip_yaw_joint",
+    r".*_knee_joint",
+    r".*_A_achilles_joint",
+    r".*_B_achilles_joint",
+    r"waist_yaw_joint",
+    r"waist_A_joint",
+    r"waist_B_joint",
+    r".*_shoulder_pitch_joint",
+    r".*_shoulder_roll_joint",
+    r".*_shoulder_yaw_joint",
+    r".*_elbow_joint",
+    r".*_wrist_yaw_joint",
+    r".*_wrist_pitch_joint",
+    r".*_hand_yaw_joint",
+    r"head_yaw_joint",
+    r"head_pitch_joint",
+)
 
 
 def _get_optimal_solver() -> str:
@@ -165,14 +186,15 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = FOOT_SITE_NAMES
 
     # ── Reward: pose std — tuned for HU_D03 joint topology ───────────────
+    # Exclude passive ankle and rod joints to avoid conflicting/corrupting gradient penalties
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = ACTUATED_JOINT_NAMES
     cfg.rewards["pose"].params["std_standing"] = {".*": 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
-        # Lower body
+        # Lower body (actuated only)
         r".*hip_pitch.*": 0.30,
         r".*hip_roll.*":  0.15,
         r".*hip_yaw.*":   0.15,
         r".*knee.*":      0.35,
-        r".*ankle.*":     0.20,
         # Achilles — looser to allow natural ankle motion
         r".*achilles.*":  0.20,
         # Waist linkage
@@ -192,7 +214,6 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*hip_roll.*":  0.20,
         r".*hip_yaw.*":   0.20,
         r".*knee.*":      0.60,
-        r".*ankle.*":     0.35,
         r".*achilles.*":  0.35,
         r"waist_yaw.*":   0.30,
         r"waist_roll.*":  0.20,
@@ -205,9 +226,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
-    # Nới lỏng hàm mũ của thưởng vận tốc để robot dễ nhận điểm khi mới tập đi
-    cfg.rewards["track_linear_velocity"].params["std"] = 0.5
-    cfg.rewards["track_angular_velocity"].params["std"] = 0.5
+    # Tighten velocity tracking standard deviation to prevent reward leaking and local optima convergence
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.15
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.25
     cfg.rewards["track_linear_velocity"].weight = 3.0
 
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
@@ -334,10 +355,11 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     for reward_name in ("foot_clearance", "foot_slip"):
         cfg.rewards[reward_name].params["asset_cfg"].site_names = FOOT_SITE_NAMES
 
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = ACTUATED_JOINT_NAMES
     cfg.rewards["pose"].params["std_standing"] = {".*": 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
         r".*hip_pitch.*": 0.30, r".*hip_roll.*": 0.15, r".*hip_yaw.*": 0.15,
-        r".*knee.*": 0.35,      r".*ankle.*": 0.20,    r".*achilles.*": 0.20,
+        r".*knee.*": 0.35,      r".*achilles.*": 0.20,
         r"waist_yaw.*": 0.20,   r"waist_roll.*": 0.15, r"waist_pitch.*": 0.20,
         r"waist_[AB].*": 0.15,
         r".*shoulder.*": 0.05,  r".*elbow.*": 0.05,
@@ -345,12 +367,14 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     }
     cfg.rewards["pose"].params["std_running"] = {
         r".*hip_pitch.*": 0.50, r".*hip_roll.*": 0.20, r".*hip_yaw.*": 0.20,
-        r".*knee.*": 0.60,      r".*ankle.*": 0.35,    r".*achilles.*": 0.35,
+        r".*knee.*": 0.60,      r".*achilles.*": 0.35,
         r"waist_yaw.*": 0.30,   r"waist_roll.*": 0.20, r"waist_pitch.*": 0.30,
         r"waist_[AB].*": 0.20,
         r".*shoulder.*": 0.10,  r".*elbow.*": 0.10,
         r".*wrist.*": 0.20,     r".*hand.*": 0.20, r".*head.*": 0.15,
     }
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.15
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.25
     cfg.rewards["foot_clearance"].weight = 0.0
     cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.05
