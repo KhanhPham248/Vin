@@ -166,11 +166,12 @@ HOME_KEYFRAME = EntityCfg.InitialStateCfg(
         "waist_yaw_joint":      0.00,
         "waist_A_joint":        0.00,
         "waist_B_joint":        0.00,
-        # Arms — natural hang
+        # Arms — G1 style (elbows bent, shoulders slightly out)
         ".*_shoulder_pitch_joint": 0.20,
-        ".*_shoulder_roll_joint":  0.00,
+        "left_shoulder_roll_joint": 0.20,
+        "right_shoulder_roll_joint": -0.20,
         ".*_shoulder_yaw_joint":   0.00,
-        ".*_elbow_joint":          -1.20,
+        ".*_elbow_joint":          0.60,
         ".*_wrist_yaw_joint":      0.00,
         ".*_wrist_pitch_joint":    0.00,
         ".*_hand_yaw_joint":       0.00,

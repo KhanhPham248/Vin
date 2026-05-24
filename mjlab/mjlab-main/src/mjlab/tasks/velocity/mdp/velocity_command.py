@@ -162,7 +162,8 @@ class UniformVelocityCommand(CommandTerm):
     with server.gui.add_folder(name.capitalize()):
       enabled = server.gui.add_checkbox("Enable", initial_value=False)
 
-      for label, max_val in axes:
+      for label, raw_max in axes:
+        max_val = float(max(0.1, abs(raw_max)))
         max_input = server.gui.add_slider(
           f"Max {label}",
           initial_value=max_val,

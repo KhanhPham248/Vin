@@ -53,7 +53,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.mujoco.ccd_iterations = 200
     cfg.sim.contact_sensor_maxmatch = 64
     cfg.sim.nconmax = None          # auto
-    # cfg.sim.mujoco.solver = "cg"  # Chỉ dùng "cg" cho máy cá nhân cũ (Quadro P2000). Đã tắt để dùng Newton (T4/A100)
+    # cfg.sim.mujoco.solver = "cg"  # Chỉ dùng "cg" cho máy cá nhân cũ. Đã tắt để dùng Newton (L4/A100)
 
     # ── Robot ─────────────────────────────────────────────────────────────
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
@@ -124,7 +124,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.1   # HU_D03 slightly shorter than G1
-    twist_cmd.ranges.lin_vel_x = (0.0, 0.3)
+    twist_cmd.ranges.lin_vel_x = (0.0, 1.2)
     twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
     twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
 
@@ -162,11 +162,11 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"waist_roll.*":  0.15,
         r"waist_pitch.*": 0.20,
         r"waist_[AB].*":  0.15,
-        # Arms — very loose, not critical for locomotion
-        r".*shoulder.*":  0.20,
-        r".*elbow.*":     0.20,
-        r".*wrist.*":     0.35,
-        r".*hand.*":      0.35,
+        # Arms — strict penalty to prevent dangling
+        r".*shoulder.*":  0.05,
+        r".*elbow.*":     0.05,
+        r".*wrist.*":     0.10,
+        r".*hand.*":      0.10,
         r".*head.*":      0.10,
     }
     cfg.rewards["pose"].params["std_running"] = {
@@ -180,20 +180,20 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"waist_roll.*":  0.20,
         r"waist_pitch.*": 0.30,
         r"waist_[AB].*":  0.20,
-        r".*shoulder.*":  0.40,
-        r".*elbow.*":     0.35,
-        r".*wrist.*":     0.40,
-        r".*hand.*":      0.40,
+        r".*shoulder.*":  0.10,
+        r".*elbow.*":     0.10,
+        r".*wrist.*":     0.20,
+        r".*hand.*":      0.20,
         r".*head.*":      0.15,
     }
 
-    cfg.rewards["foot_clearance"].weight = -2.0
-    cfg.rewards["action_rate_l2"].weight = -0.1
+    cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
+    cfg.rewards["action_rate_l2"].weight = -0.01 # Giảm phạt l2 để dễ cử động hơn
     cfg.rewards["soft_landing"].weight = -0.05
-    cfg.rewards["foot_slip"].weight = -0.1
+    cfg.rewards["foot_slip"].weight = -0.05
     cfg.rewards["upright"].weight = 3.0
     cfg.rewards["body_ang_vel"].weight = -0.05
-    cfg.rewards["angular_momentum"].weight = -0.1
+    cfg.rewards["angular_momentum"].weight = -0.02 # Trả về mức chuẩn của G1
     cfg.rewards["air_time"].weight = 3.0   # Enabled to encourage stepping (HU-D03 needs this)
     cfg.rewards["air_time"].params["command_threshold"] = 0.1  # Fix: Kích hoạt thưởng bay chân ngay cả khi đi chậm (vận tốc > 0.1)
 
@@ -207,20 +207,21 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # ── Fell Over Penalty ──────────────────────────────────────────────────
     cfg.rewards["fell_over_penalty"] = RewardTermCfg(
         func=mdp.bad_orientation,
-        weight=-100.0,
+        weight=-2.0,  # Giảm từ -100 xuống -2.0 để tránh làm robot sợ hãi (đứng im)
         params={"limit_angle": math.radians(85.0)},
     )
 
-    # ── Curriculum (slow walking up to 0.3 m/s) ───────────────────────────
+    # ── Curriculum (walking up to 1.2 m/s) ───────────────────────────
     cfg.curriculum.pop("terrain_levels", None)
     cfg.curriculum["command_vel"] = CurriculumTermCfg(
         func=mdp.commands_vel,
         params={
             "command_name": "twist",
             "velocity_stages": [
-                {"step": 0, "lin_vel_x": (0.0, 0.0), "ang_vel_z": (0.0, 0.0)},
-                {"step": 5000 * 24, "lin_vel_x": (0.0, 0.1), "ang_vel_z": (0.0, 0.0)},
-                {"step": 10000 * 24, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
+                {"step": 0, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
+                {"step": 1000 * 1024, "lin_vel_x": (0.0, 0.6), "ang_vel_z": (0.0, 0.0)},
+                {"step": 2000 * 1024, "lin_vel_x": (0.0, 1.0), "ang_vel_z": (0.0, 0.0)},
+                {"step": 3000 * 1024, "lin_vel_x": (0.0, 1.2), "ang_vel_z": (0.0, 0.0)},
             ],
         },
     )
@@ -251,7 +252,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
     cfg.sim.nconmax = 70
-    # cfg.sim.mujoco.solver = "cg"  # Tắt để dùng Newton mặc định cho T4
+    # cfg.sim.mujoco.solver = "cg"  # Tắt để dùng Newton mặc định cho L4
 
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
@@ -317,16 +318,16 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*knee.*": 0.35,      r".*ankle.*": 0.20,    r".*achilles.*": 0.20,
         r"waist_yaw.*": 0.20,   r"waist_roll.*": 0.15, r"waist_pitch.*": 0.20,
         r"waist_[AB].*": 0.15,
-        r".*shoulder.*": 0.20,  r".*elbow.*": 0.20,
-        r".*wrist.*": 0.35,     r".*hand.*": 0.35, r".*head.*": 0.10,
+        r".*shoulder.*": 0.05,  r".*elbow.*": 0.05,
+        r".*wrist.*": 0.10,     r".*hand.*": 0.10, r".*head.*": 0.10,
     }
     cfg.rewards["pose"].params["std_running"] = {
         r".*hip_pitch.*": 0.50, r".*hip_roll.*": 0.20, r".*hip_yaw.*": 0.20,
         r".*knee.*": 0.60,      r".*ankle.*": 0.35,    r".*achilles.*": 0.35,
         r"waist_yaw.*": 0.30,   r"waist_roll.*": 0.20, r"waist_pitch.*": 0.30,
         r"waist_[AB].*": 0.20,
-        r".*shoulder.*": 0.40,  r".*elbow.*": 0.35,
-        r".*wrist.*": 0.40,     r".*hand.*": 0.40, r".*head.*": 0.15,
+        r".*shoulder.*": 0.10,  r".*elbow.*": 0.10,
+        r".*wrist.*": 0.20,     r".*hand.*": 0.20, r".*head.*": 0.15,
     }
     cfg.rewards["foot_clearance"].weight = 0.0
     cfg.rewards["action_rate_l2"].weight = -0.05
@@ -345,7 +346,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (0.0, 0.3)
+    twist_cmd.ranges.lin_vel_x = (0.0, 1.2)
     twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
     twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
 
