@@ -16,7 +16,7 @@ def hu_d03_flat_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
             obs_normalization=True,
             distribution_cfg={
                 "class_name": "GaussianDistribution",
-                "init_std": 0.5,
+                "init_std": 0.8,
                 "std_type": "scalar",
             },
         ),

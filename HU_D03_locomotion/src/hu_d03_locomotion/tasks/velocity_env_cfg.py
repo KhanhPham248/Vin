@@ -134,6 +134,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # CoM offset randomization on root body
     cfg.events["base_com"].params["asset_cfg"].body_names = ("base_link",)
 
+    # Disable push_robot to let the robot learn to stand first
+    cfg.events.pop("push_robot", None)
+
     # ── Reward: upright body reference ───────────────────────────────────
     # Use waist_pitch_link (closest to torso in HU_D03 chain)
     cfg.rewards["upright"].params["asset_cfg"].body_names = ("waist_pitch_link",)
@@ -184,13 +187,13 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
-    cfg.rewards["foot_clearance"].weight = 0.0
+    cfg.rewards["foot_clearance"].weight = -2.0
     cfg.rewards["action_rate_l2"].weight = -0.1
     cfg.rewards["soft_landing"].weight = -0.05
     cfg.rewards["foot_slip"].weight = -0.1
     cfg.rewards["upright"].weight = 3.0
     cfg.rewards["body_ang_vel"].weight = -0.05
-    cfg.rewards["angular_momentum"].weight = -0.02
+    cfg.rewards["angular_momentum"].weight = -0.1
     cfg.rewards["air_time"].weight = 3.0   # Enabled to encourage stepping (HU-D03 needs this)
     cfg.rewards["air_time"].params["command_threshold"] = 0.1  # Fix: Kích hoạt thưởng bay chân ngay cả khi đi chậm (vận tốc > 0.1)
 
@@ -201,6 +204,13 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": "self_collision", "force_threshold": 10.0},
     )
 
+    # ── Fell Over Penalty ──────────────────────────────────────────────────
+    cfg.rewards["fell_over_penalty"] = RewardTermCfg(
+        func=mdp.bad_orientation,
+        weight=-100.0,
+        params={"limit_angle": math.radians(85.0)},
+    )
+
     # ── Curriculum (slow walking up to 0.3 m/s) ───────────────────────────
     cfg.curriculum.pop("terrain_levels", None)
     cfg.curriculum["command_vel"] = CurriculumTermCfg(
@@ -208,8 +218,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "command_name": "twist",
             "velocity_stages": [
-                {"step": 0, "lin_vel_x": (0.0, 0.1), "ang_vel_z": (0.0, 0.0)},
-                {"step": 5000 * 24, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
+                {"step": 0, "lin_vel_x": (0.0, 0.0), "ang_vel_z": (0.0, 0.0)},
+                {"step": 5000 * 24, "lin_vel_x": (0.0, 0.1), "ang_vel_z": (0.0, 0.0)},
+                {"step": 10000 * 24, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
             ],
         },
     )
