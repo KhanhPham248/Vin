@@ -187,15 +187,16 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
-    # Bóp chặt (Tighten) hàm mũ của thưởng vận tốc, chống lết (reward leaking)
-    cfg.rewards["track_linear_velocity"].params["std"] = 0.25
-    cfg.rewards["track_angular_velocity"].params["std"] = 0.25
+    # Nới lỏng hàm mũ của thưởng vận tốc để robot dễ nhận điểm khi mới tập đi
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.5
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.5
+    cfg.rewards["track_linear_velocity"].weight = 3.0
 
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
     cfg.rewards["action_rate_l2"].weight = -0.01 # Giảm phạt l2 để dễ cử động hơn
     cfg.rewards["soft_landing"].weight = -0.05
     cfg.rewards["foot_slip"].weight = -0.05
-    cfg.rewards["upright"].weight = 3.0
+    cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02 # Trả về mức chuẩn của G1
     cfg.rewards["air_time"].weight = 3.0   # Enabled to encourage stepping (HU-D03 needs this)
@@ -211,7 +212,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # ── Fell Over Penalty ──────────────────────────────────────────────────
     cfg.rewards["fell_over_penalty"] = RewardTermCfg(
         func=mdp.bad_orientation,
-        weight=-2.0,  # Giảm từ -100 xuống -2.0 để tránh làm robot sợ hãi (đứng im)
+        weight=0.0,  # Tắt hẳn phạt ngã ở giai đoạn đầu để robot dám bước đi
         params={"limit_angle": math.radians(85.0)},
     )
 
@@ -336,7 +337,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.05
     cfg.rewards["foot_slip"].weight = -0.05
-    cfg.rewards["upright"].weight = 3.0
+    cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
     cfg.rewards["air_time"].weight = 3.0
