@@ -13,6 +13,7 @@ from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.sensor import (
     ContactMatch,
     ContactSensorCfg,
@@ -183,15 +184,14 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
-    # ── Reward weights adjustments ────────────────────────────────────────
     cfg.rewards["foot_clearance"].weight = 0.0
-    cfg.rewards["action_rate_l2"].weight = -0.05
+    cfg.rewards["action_rate_l2"].weight = -0.1
     cfg.rewards["soft_landing"].weight = -0.05
-    cfg.rewards["foot_slip"].weight = -0.05
+    cfg.rewards["foot_slip"].weight = -0.1
     cfg.rewards["upright"].weight = 3.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
-    cfg.rewards["air_time"].weight = 3.0   # Enabled to encourage stepping
+    cfg.rewards["air_time"].weight = 3.0   # Enabled to encourage stepping (HU-D03 needs this)
     cfg.rewards["air_time"].params["command_threshold"] = 0.1  # Fix: Kích hoạt thưởng bay chân ngay cả khi đi chậm (vận tốc > 0.1)
 
     # ── Self-collision penalty ─────────────────────────────────────────────
@@ -201,9 +201,18 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": "self_collision", "force_threshold": 10.0},
     )
 
-    # ── Curriculum (disable on flat) ──────────────────────────────────────
+    # ── Curriculum (slow walking up to 0.3 m/s) ───────────────────────────
     cfg.curriculum.pop("terrain_levels", None)
-    cfg.curriculum.pop("command_vel", None)  # Disable command curriculum so our custom bounds stay
+    cfg.curriculum["command_vel"] = CurriculumTermCfg(
+        func=mdp.commands_vel,
+        params={
+            "command_name": "twist",
+            "velocity_stages": [
+                {"step": 0, "lin_vel_x": (0.0, 0.1), "ang_vel_z": (0.0, 0.0)},
+                {"step": 5000 * 24, "lin_vel_x": (0.0, 0.3), "ang_vel_z": (0.0, 0.0)},
+            ],
+        },
+    )
     cfg.terminations.pop("out_of_terrain_bounds", None)
     cfg.terminations["fell_over"].params["limit_angle"] = math.radians(85.0)
 
