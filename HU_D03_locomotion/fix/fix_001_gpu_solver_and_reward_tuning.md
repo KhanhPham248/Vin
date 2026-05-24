@@ -32,8 +32,12 @@
 ---
 
 ## 2. Loại Bỏ Khớp Thụ Động Khỏi Phạt Tư Thế (Pose Reward Masking)
-- **Vấn đề:** G1 chỉ có 29 khớp chủ động nên chọn mặc định `".*"` cho phần thưởng tư thế `"pose"` hoạt động tốt. HU_D03 có tới 55 khớp (31 chủ động, 24 thụ động). Hàm phạt cũ đè phạt lên cả 24 khớp thụ động này. Do các thanh liên kết 4-bar và cổ chân bắt buộc phải xoay khi chân di chuyển, robot chịu điểm phạt tư thế liên tục rất lớn nếu bước đi $\rightarrow$ Robot chọn đứng im làm nghiệm tối ưu.
-- **Giải pháp:** Tạo hằng số lọc khớp chủ động `ACTUATED_JOINT_NAMES` và gán vào `joint_names` của phần thưởng `"pose"`. Loại bỏ khóa `r".*ankle.*"` khỏi từ điển sai số của `std_walking` và `std_running` (vì cổ chân trên HU_D03 là khớp thụ động).
+- **Vấn đề:** 
+  1. G1 chỉ có 29 khớp chủ động nên chọn mặc định `".*"` cho phần thưởng tư thế `"pose"` hoạt động tốt. HU_D03 có tới 55 khớp (31 chủ động, 24 thụ động). Hàm phạt cũ đè phạt lên cả 24 khớp thụ động này. Do các thanh liên kết 4-bar và cổ chân bắt buộc phải xoay khi chân di chuyển, robot chịu điểm phạt tư thế liên tục rất lớn nếu bước đi $\rightarrow$ Robot chọn đứng im làm nghiệm tối ưu.
+  2. G1 có các khớp eo trực tiếp (`waist_roll`, `waist_pitch`). Nhưng HU_D03 sử dụng liên kết song song được kéo bởi các khớp chủ động `waist_yaw`, `waist_A`, `waist_B`. Khi siết chặt khớp về 31 khớp chủ động, việc giữ nguyên các mẫu `r"waist_roll.*"` và `r"waist_pitch.*"` trong cấu hình sai số `std_walking` và `std_running` gây lỗi crash `ValueError: Not all regular expressions are matched` do các khớp eo xoay/gập trực tiếp này không tồn tại trong danh sách khớp chủ động của HU_D03.
+- **Giải pháp:** 
+  1. Tạo hằng số lọc khớp chủ động `ACTUATED_JOINT_NAMES` và gán vào `joint_names` của phần thưởng `"pose"`.
+  2. Loại bỏ khóa `r".*ankle.*"` (vì cổ chân là khớp thụ động) và khóa `r"waist_roll.*"`, `r"waist_pitch.*"` khỏi từ điển sai số `std_walking` và `std_running` trong cả 2 cấu hình Flat và Rough.
 - **Danh sách khớp được bảo vệ (Chỉ phạt tư thế trên các khớp này):**
   ```python
   ACTUATED_JOINT_NAMES = (

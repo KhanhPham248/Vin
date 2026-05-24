@@ -199,8 +199,6 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*achilles.*":  0.20,
         # Waist linkage
         r"waist_yaw.*":   0.20,
-        r"waist_roll.*":  0.15,
-        r"waist_pitch.*": 0.20,
         r"waist_[AB].*":  0.15,
         # Arms — strict penalty to prevent dangling
         r".*shoulder.*":  0.05,
@@ -216,8 +214,6 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*knee.*":      0.60,
         r".*achilles.*":  0.35,
         r"waist_yaw.*":   0.30,
-        r"waist_roll.*":  0.20,
-        r"waist_pitch.*": 0.30,
         r"waist_[AB].*":  0.20,
         r".*shoulder.*":  0.10,
         r".*elbow.*":     0.10,
@@ -360,16 +356,14 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["pose"].params["std_walking"] = {
         r".*hip_pitch.*": 0.30, r".*hip_roll.*": 0.15, r".*hip_yaw.*": 0.15,
         r".*knee.*": 0.35,      r".*achilles.*": 0.20,
-        r"waist_yaw.*": 0.20,   r"waist_roll.*": 0.15, r"waist_pitch.*": 0.20,
-        r"waist_[AB].*": 0.15,
+        r"waist_yaw.*": 0.20,   r"waist_[AB].*": 0.15,
         r".*shoulder.*": 0.05,  r".*elbow.*": 0.05,
         r".*wrist.*": 0.10,     r".*hand.*": 0.10, r".*head.*": 0.10,
     }
     cfg.rewards["pose"].params["std_running"] = {
         r".*hip_pitch.*": 0.50, r".*hip_roll.*": 0.20, r".*hip_yaw.*": 0.20,
         r".*knee.*": 0.60,      r".*achilles.*": 0.35,
-        r"waist_yaw.*": 0.30,   r"waist_roll.*": 0.20, r"waist_pitch.*": 0.30,
-        r"waist_[AB].*": 0.20,
+        r"waist_yaw.*": 0.30,   r"waist_[AB].*": 0.20,
         r".*shoulder.*": 0.10,  r".*elbow.*": 0.10,
         r".*wrist.*": 0.20,     r".*hand.*": 0.20, r".*head.*": 0.15,
     }
