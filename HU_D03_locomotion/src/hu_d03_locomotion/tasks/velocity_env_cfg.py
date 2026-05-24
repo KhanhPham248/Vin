@@ -40,6 +40,24 @@ FOOT_SITE_NAMES = ("left_foot", "right_foot")
 FOOT_GEOM_NAMES = ("left_foot", "right_foot")
 
 
+def _get_optimal_solver() -> str:
+    """Determine the optimal solver based on environment variables and GPU capability.
+    Older GPUs (e.g., Pascal sm_61) require the CG solver to avoid tiled matmul LTO failures.
+    """
+    import os
+    if "MJLAB_SOLVER" in os.environ:
+        return os.environ["MJLAB_SOLVER"]
+    try:
+        import torch
+        if torch.cuda.is_available():
+            major, _ = torch.cuda.get_device_capability(0)
+            if major < 7:  # Volta (sm_70) is the minimum required for Warp tile_matmul LTO
+                return "cg"
+    except Exception:
+        pass
+    return "newton"
+
+
 # ---------------------------------------------------------------------------
 # Flat terrain config (start here — fewer variables, fastest to debug)
 # ---------------------------------------------------------------------------
@@ -53,7 +71,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.mujoco.ccd_iterations = 200
     cfg.sim.contact_sensor_maxmatch = 64
     cfg.sim.nconmax = None          # auto
-    # cfg.sim.mujoco.solver = "cg"  # Chỉ dùng "cg" cho máy cá nhân cũ. Đã tắt để dùng Newton (L4/A100)
+    cfg.sim.mujoco.solver = _get_optimal_solver()
 
     # ── Robot ─────────────────────────────────────────────────────────────
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
@@ -256,7 +274,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
     cfg.sim.nconmax = 70
-    # cfg.sim.mujoco.solver = "cg"  # Tắt để dùng Newton mặc định cho L4
+    cfg.sim.mujoco.solver = _get_optimal_solver()
 
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
