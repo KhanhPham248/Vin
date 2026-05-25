@@ -252,10 +252,11 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": "self_collision", "force_threshold": 10.0},
     )
 
-    # ── Fell Over Penalty ──────────────────────────────────────────────────
+    # ── Fell Over Penalty (Cực kỳ quan trọng để thăng bằng) ───────────────
     cfg.rewards["fell_over_penalty"] = RewardTermCfg(
         func=mdp.bad_orientation,
-        weight=0.0,  # Tắt hẳn phạt ngã ở giai đoạn đầu để robot dám bước đi
+        weight=-200.0,  # Giống G1: Phạt cực nặng để robot bắt buộc phải học cách đứng vững
+
         params={"limit_angle": math.radians(85.0)},
     )
 
