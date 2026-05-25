@@ -55,10 +55,11 @@ def get_spec() -> mujoco.MjSpec:
             # Only override the primary friction coefficient (keep torsional/rolling).
             geom.friction[0] = 0.6
         else:
-            # Self-collision only: exclude the terrain bit from affinity.
+            # Allow terrain collision and self-collision for ALL geoms.
+            # This ensures knees and arms don't ghost through the ground.
             geom.condim = 3
-            geom.contype = robot_self_bit
-            geom.conaffinity = robot_self_bit
+            geom.contype = terrain_bit | robot_self_bit
+            geom.conaffinity = terrain_bit | robot_self_bit
 
     return spec
 

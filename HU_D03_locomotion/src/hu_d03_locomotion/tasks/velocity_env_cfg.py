@@ -100,10 +100,8 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
     # Restrict joint state observations to actuated joints only.
+    # [FIX]: Removed. The policy MUST observe all 55 joints (including passive ankles) to balance!
     actuated_asset_cfg = SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
-    for grp in ("actor", "critic"):
-        cfg.observations[grp].terms["joint_pos"].params["asset_cfg"] = actuated_asset_cfg
-        cfg.observations[grp].terms["joint_vel"].params["asset_cfg"] = actuated_asset_cfg
 
     # ── Flat terrain (no raycast needed) ──────────────────────────────────
     assert cfg.scene.terrain is not None
@@ -154,9 +152,24 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         history_length=4,
     )
 
+    # Undesired contact detector (base, knees, hips, arms vs terrain).
+    undesired_contact_cfg = ContactSensorCfg(
+        name="undesired_contact",
+        primary=ContactMatch(
+            mode="body",
+            pattern=r".*(base_link|knee|hip|waist|shoulder|elbow|wrist|head).*",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found", "force"),
+        reduce="none",
+        num_slots=1,
+    )
+
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (
         feet_ground_cfg,
         self_collision_cfg,
+        undesired_contact_cfg,
     )
 
     # ── Action scale (robot-specific) ─────────────────────────────────────
@@ -308,6 +321,10 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.terminations.pop("out_of_terrain_bounds", None)
     cfg.terminations["fell_over"].params["limit_angle"] = math.radians(85.0)
+    cfg.terminations["undesired_contacts"] = TerminationTermCfg(
+        func=mdp_unitree.undesired_contacts,
+        params={"sensor_name": "undesired_contact", "threshold": 1.0},
+    )
 
     # ── Play mode overrides ───────────────────────────────────────────────
     if play:
@@ -338,10 +355,8 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
     # Restrict joint state observations to actuated joints only.
+    # [FIX]: Removed. The policy MUST observe all 55 joints (including passive ankles) to balance!
     actuated_asset_cfg = SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
-    for grp in ("actor", "critic"):
-        cfg.observations[grp].terms["joint_pos"].params["asset_cfg"] = actuated_asset_cfg
-        cfg.observations[grp].terms["joint_vel"].params["asset_cfg"] = actuated_asset_cfg
 
     # Raycast sensor frame → base_link (G1 uses pelvis)
     for sensor in cfg.scene.sensors or ():
@@ -381,9 +396,23 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         history_length=4,
     )
 
+    undesired_contact_cfg = ContactSensorCfg(
+        name="undesired_contact",
+        primary=ContactMatch(
+            mode="body",
+            pattern=r".*(base_link|knee|hip|waist|shoulder|elbow|wrist|head).*",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found", "force"),
+        reduce="none",
+        num_slots=1,
+    )
+
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (
         feet_ground_cfg,
         self_collision_cfg,
+        undesired_contact_cfg,
     )
 
     if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
@@ -477,6 +506,10 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.curriculum.pop("command_vel", None)
     cfg.terminations["fell_over"].params["limit_angle"] = math.radians(85.0)
+    cfg.terminations["undesired_contacts"] = TerminationTermCfg(
+        func=mdp_unitree.undesired_contacts,
+        params={"sensor_name": "undesired_contact", "threshold": 1.0},
+    )
 
     if play:
         cfg.episode_length_s = int(1e9)

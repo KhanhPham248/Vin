@@ -205,3 +205,18 @@ def feet_air_time_touchdown(
             
     return reward
 
+
+# ── Termination: Undesired Contacts ──────────────────────────────────────────
+
+def undesired_contacts(
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+    threshold: float = 1.0,
+) -> torch.Tensor:
+    """Terminate the episode if any undesired part of the robot touches the ground."""
+    sensor: ContactSensor = env.scene[sensor_name]
+    
+    # net_force_norm shape: [num_envs, num_frames] -> check max force across all tracked frames
+    max_contact_force = torch.max(sensor.data.net_force_norm, dim=1)[0]
+    
+    return max_contact_force > threshold
