@@ -236,12 +236,12 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["track_linear_velocity"].weight = 3.0
 
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
-    cfg.rewards["action_rate_l2"].weight = -0.01  # Giảm mạnh: không nên phạt nặng khi robot còn đang học đứng
+    cfg.rewards["action_rate_l2"].weight = -0.05 # Tăng phạt để chống rung giật tần số cao
     cfg.rewards["soft_landing"].weight = -0.05
     cfg.rewards["foot_slip"].weight = -0.05
-    cfg.rewards["upright"].weight = 2.0            # Tăng gấp đôi: khuyến khích đứng thẳng mạnh hơn
+    cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
-    cfg.rewards["angular_momentum"].weight = -0.02
+    cfg.rewards["angular_momentum"].weight = -0.02 # Trả về mức chuẩn của G1
     
     # ── Touchdown-only Air Time Reward (Prevents "Air-Rowing" reward hacking) ──
     cfg.rewards["air_time"] = RewardTermCfg(
@@ -287,22 +287,10 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
 
     # ── Fell Over Penalty ──────────────────────────────────────────────────
-    # BUG FIX: weight=0 trước đây khiến robot học "death spiral" — ngã sớm để
-    # tránh tích lũy các penalty liên tục (action_rate_l2, angular_momentum...).
-    # Phải có penalty cho ngã để counter early-termination exploitation.
     cfg.rewards["fell_over_penalty"] = RewardTermCfg(
         func=mdp.bad_orientation,
-        weight=-3.0,
-        params={"limit_angle": math.radians(70.0)},  # 70° thay vì 85° cho phản ứng sớm hơn
-    )
-
-    # ── Alive Bonus (chống death spiral: robot luôn có lợi khi đứng sống) ────
-    # Khi robot sống sót mỗi timestep → +0.5 điểm. Điều này đảo ngược incentive:
-    # "sống lâu hơn" bây giờ LÚC NÀO CŨNG có lợi hơn "ngã sớm".
-    cfg.rewards["alive"] = RewardTermCfg(
-        func=mdp.is_alive,
-        weight=0.5,
-        params={},
+        weight=0.0,  # Tắt hẳn phạt ngã ở giai đoạn đầu để robot dám bước đi
+        params={"limit_angle": math.radians(85.0)},
     )
 
     # ── Curriculum (walking up to 1.2 m/s) ───────────────────────────
@@ -432,10 +420,10 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["track_linear_velocity"].params["std"] = 0.25
     cfg.rewards["track_angular_velocity"].params["std"] = 0.50
     cfg.rewards["foot_clearance"].weight = 0.0
-    cfg.rewards["action_rate_l2"].weight = -0.01
+    cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.05
     cfg.rewards["foot_slip"].weight = -0.05
-    cfg.rewards["upright"].weight = 2.0
+    cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
     
@@ -481,18 +469,6 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": "self_collision", "force_threshold": 10.0},
     )
 
-    # ── Fell Over Penalty + Alive Bonus (same as flat — prevent death spiral) ─
-    cfg.rewards["fell_over_penalty"] = RewardTermCfg(
-        func=mdp.bad_orientation,
-        weight=-3.0,
-        params={"limit_angle": math.radians(70.0)},
-    )
-    cfg.rewards["alive"] = RewardTermCfg(
-        func=mdp.is_alive,
-        weight=0.5,
-        params={},
-    )
-
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (0.0, 1.2)
@@ -500,7 +476,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
 
     cfg.curriculum.pop("command_vel", None)
-    cfg.terminations["fell_over"].params["limit_angle"] = math.radians(70.0)
+    cfg.terminations["fell_over"].params["limit_angle"] = math.radians(85.0)
 
     if play:
         cfg.episode_length_s = int(1e9)

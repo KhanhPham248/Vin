@@ -126,8 +126,8 @@ def contact_asymmetry(
     # Absolute difference in contact time between Left and Right feet
     asym = torch.abs(contact_time[:, 0] - contact_time[:, 1])
     
-    # Negative reward (penalty)
-    penalty = -asym
+    # Raw magnitude (positive)
+    penalty = asym
     
     # Only active when commanded to move
     command = env.command_manager.get_command(command_name)
@@ -154,7 +154,7 @@ def contact_duration_penalty(
     
     # Penalize any foot whose contact time exceeds max_duration
     excess_time = torch.clamp(contact_time - max_duration, min=0.0)
-    penalty = -torch.sum(excess_time, dim=1)
+    penalty = torch.sum(excess_time, dim=1)
     
     # Only active when commanded to move
     command = env.command_manager.get_command(command_name)
@@ -189,8 +189,9 @@ def feet_air_time_touchdown(
     # Get the duration of the completed air phase
     air_time = sensor.data.last_air_time
     
-    # Only reward if the completed air time was in the target range
-    reward_per_foot = (air_time - threshold_min) * touchdown.float()
+    # Only reward if the completed air time is between threshold_min and threshold_max
+    # This prevents extremely long, floaty steps or keeping a foot in the air indefinitely
+    reward_per_foot = torch.clamp(air_time - threshold_min, min=0.0) * (air_time <= threshold_max).float() * touchdown.float()
     
     reward = torch.sum(reward_per_foot, dim=1)
     
