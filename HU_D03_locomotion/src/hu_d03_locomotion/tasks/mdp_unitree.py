@@ -216,7 +216,11 @@ def undesired_contacts(
     """Terminate the episode if any undesired part of the robot touches the ground."""
     sensor: ContactSensor = env.scene[sensor_name]
     
-    # net_force_norm shape: [num_envs, num_frames] -> check max force across all tracked frames
-    max_contact_force = torch.max(sensor.data.net_force_norm, dim=1)[0]
+    if sensor.data.force is not None:
+        force_norm = torch.norm(sensor.data.force, dim=-1)  # [B, N]
+        return (force_norm > threshold).any(dim=-1)
     
-    return max_contact_force > threshold
+    if sensor.data.found is not None:
+        return sensor.data.found.any(dim=-1) > 0
+        
+    return torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
