@@ -234,9 +234,9 @@ HU_D03_ACTION_SCALE: dict[str, float] = {}
 for _act in HU_D03_ARTICULATION.actuators:
     assert isinstance(_act, BuiltinPositionActuatorCfg)
     for _n in _act.target_names_expr:
-        # Leg joints (hips, knees, ankles) and waist need realistic range (0.80 rad ≈ 45.8 deg)
+        # Leg joints (hips, knees, ankles) and waist need realistic range (0.40 rad ≈ 22.9 deg)
         if any(keyword in _n for keyword in ("hip", "knee", "achilles", "waist")):
-            HU_D03_ACTION_SCALE[_n] = 0.80
+            HU_D03_ACTION_SCALE[_n] = 0.40
         else:
             HU_D03_ACTION_SCALE[_n] = 0.30
 
