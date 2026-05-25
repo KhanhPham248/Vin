@@ -15,7 +15,6 @@ from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import (
     ContactMatch,
     ContactSensorCfg,
@@ -29,7 +28,6 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 
 from hu_d03_locomotion.robots import HU_D03_ACTION_SCALE, get_hu_d03_robot_cfg
-from hu_d03_locomotion.tasks import mdp_unitree
 
 
 # Shared constants
@@ -101,8 +99,10 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
     # Restrict joint state observations to actuated joints only.
-    # [FIX]: Removed. The policy MUST observe all 55 joints (including passive ankles) to balance!
     actuated_asset_cfg = SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
+    for grp in ("actor", "critic"):
+        cfg.observations[grp].terms["joint_pos"].params["asset_cfg"] = actuated_asset_cfg
+        cfg.observations[grp].terms["joint_vel"].params["asset_cfg"] = actuated_asset_cfg
 
     # ── Flat terrain (no raycast needed) ──────────────────────────────────
     assert cfg.scene.terrain is not None
@@ -153,24 +153,9 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         history_length=4,
     )
 
-    # Undesired contact detector (base, knees, hips, arms vs terrain).
-    undesired_contact_cfg = ContactSensorCfg(
-        name="undesired_contact",
-        primary=ContactMatch(
-            mode="body",
-            pattern=r".*(base_link|knee|hip|waist|shoulder|elbow|wrist|head).*",
-            entity="robot",
-        ),
-        secondary=ContactMatch(mode="body", pattern="terrain"),
-        fields=("found", "force"),
-        reduce="none",
-        num_slots=1,
-    )
-
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (
         feet_ground_cfg,
         self_collision_cfg,
-        undesired_contact_cfg,
     )
 
     # ── Action scale (robot-specific) ─────────────────────────────────────
@@ -252,46 +237,13 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
     cfg.rewards["action_rate_l2"].weight = -0.05 # Tăng phạt để chống rung giật tần số cao
     cfg.rewards["soft_landing"].weight = -0.05
-    cfg.rewards["foot_slip"].weight = -0.05
+    cfg.rewards["foot_slip"].weight = -0.5   # Phạt cực nặng lỗi kéo lết chân trụ
+    cfg.rewards["foot_swing_height"].weight = -0.5 # Ép nhấc chân đủ cao (phá vỡ thế lò cò)
     cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02 # Trả về mức chuẩn của G1
-    
-    # ── Touchdown-only Air Time Reward (Prevents "Air-Rowing" reward hacking) ──
-    cfg.rewards["air_time"] = RewardTermCfg(
-        func=mdp_unitree.feet_air_time_touchdown,
-        weight=1.5,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "threshold_min": 0.05,
-            "threshold_max": 0.5,
-            "command_name": "twist",
-            "command_threshold": 0.1,
-        },
-    )
-
-    # ── Contact Asymmetry Penalty (Prevents asymmetric "peg-leg" locomotion) ────
-    cfg.rewards["contact_asymmetry"] = RewardTermCfg(
-        func=mdp_unitree.contact_asymmetry,
-        weight=-1.5,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "command_name": "twist",
-            "command_threshold": 0.1,
-        },
-    )
-
-    # ── Contact Duration Penalty (Forces bipedal foot lifting) ──────────────────
-    cfg.rewards["contact_duration_penalty"] = RewardTermCfg(
-        func=mdp_unitree.contact_duration_penalty,
-        weight=-2.0,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "command_name": "twist",
-            "max_duration": 0.5,
-            "command_threshold": 0.1,
-        },
-    )
+    cfg.rewards["air_time"].weight = 1.0   # Giảm trọng số để tránh hack reward đập chân vô nghĩa
+    cfg.rewards["air_time"].params["command_threshold"] = 0.1  # Fix: Kích hoạt thưởng bay chân ngay cả khi đi chậm (vận tốc > 0.1)
 
     # ── Self-collision penalty ─────────────────────────────────────────────
     cfg.rewards["self_collisions"] = RewardTermCfg(
@@ -322,10 +274,6 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.terminations.pop("out_of_terrain_bounds", None)
     cfg.terminations["fell_over"].params["limit_angle"] = math.radians(85.0)
-    cfg.terminations["undesired_contacts"] = TerminationTermCfg(
-        func=mdp_unitree.undesired_contacts,
-        params={"sensor_name": "undesired_contact", "threshold": 1.0},
-    )
 
     # ── Play mode overrides ───────────────────────────────────────────────
     if play:
@@ -356,8 +304,10 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
     # Restrict joint state observations to actuated joints only.
-    # [FIX]: Removed. The policy MUST observe all 55 joints (including passive ankles) to balance!
     actuated_asset_cfg = SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
+    for grp in ("actor", "critic"):
+        cfg.observations[grp].terms["joint_pos"].params["asset_cfg"] = actuated_asset_cfg
+        cfg.observations[grp].terms["joint_vel"].params["asset_cfg"] = actuated_asset_cfg
 
     # Raycast sensor frame → base_link (G1 uses pelvis)
     for sensor in cfg.scene.sensors or ():
@@ -397,23 +347,9 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         history_length=4,
     )
 
-    undesired_contact_cfg = ContactSensorCfg(
-        name="undesired_contact",
-        primary=ContactMatch(
-            mode="body",
-            pattern=r".*(base_link|knee|hip|waist|shoulder|elbow|wrist|head).*",
-            entity="robot",
-        ),
-        secondary=ContactMatch(mode="body", pattern="terrain"),
-        fields=("found", "force"),
-        reduce="none",
-        num_slots=1,
-    )
-
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (
         feet_ground_cfg,
         self_collision_cfg,
-        undesired_contact_cfg,
     )
 
     if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
@@ -452,46 +388,13 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["foot_clearance"].weight = 0.0
     cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.05
-    cfg.rewards["foot_slip"].weight = -0.05
+    cfg.rewards["foot_slip"].weight = -0.5
+    cfg.rewards["foot_swing_height"].weight = -0.5
     cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
-    
-    # ── Touchdown-only Air Time Reward (Prevents "Air-Rowing" reward hacking) ──
-    cfg.rewards["air_time"] = RewardTermCfg(
-        func=mdp_unitree.feet_air_time_touchdown,
-        weight=1.5,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "threshold_min": 0.05,
-            "threshold_max": 0.5,
-            "command_name": "twist",
-            "command_threshold": 0.1,
-        },
-    )
-
-    # ── Contact Asymmetry Penalty (Prevents asymmetric "peg-leg" locomotion) ────
-    cfg.rewards["contact_asymmetry"] = RewardTermCfg(
-        func=mdp_unitree.contact_asymmetry,
-        weight=-1.5,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "command_name": "twist",
-            "command_threshold": 0.1,
-        },
-    )
-
-    # ── Contact Duration Penalty (Forces bipedal foot lifting) ──────────────────
-    cfg.rewards["contact_duration_penalty"] = RewardTermCfg(
-        func=mdp_unitree.contact_duration_penalty,
-        weight=-2.0,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "command_name": "twist",
-            "max_duration": 0.5,
-            "command_threshold": 0.1,
-        },
-    )
+    cfg.rewards["air_time"].weight = 1.0
+    cfg.rewards["air_time"].params["command_threshold"] = 0.1
 
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
@@ -507,10 +410,6 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.curriculum.pop("command_vel", None)
     cfg.terminations["fell_over"].params["limit_angle"] = math.radians(85.0)
-    cfg.terminations["undesired_contacts"] = TerminationTermCfg(
-        func=mdp_unitree.undesired_contacts,
-        params={"sensor_name": "undesired_contact", "threshold": 1.0},
-    )
 
     if play:
         cfg.episode_length_s = int(1e9)

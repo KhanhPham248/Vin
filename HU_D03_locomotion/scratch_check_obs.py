@@ -21,7 +21,9 @@ try:
         print(f"Term '{term_name}': {term_val.shape}")
         
     print(f"Num actuated joints: {len(env.scene['robot'].data.actuator_joint_names)}")
+    print(f"Actuator names: {env.scene['robot'].data.actuator_joint_names}")
     
 except Exception as e:
     import traceback
     traceback.print_exc()
+

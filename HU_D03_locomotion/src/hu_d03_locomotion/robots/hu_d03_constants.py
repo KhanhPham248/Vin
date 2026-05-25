@@ -55,11 +55,10 @@ def get_spec() -> mujoco.MjSpec:
             # Only override the primary friction coefficient (keep torsional/rolling).
             geom.friction[0] = 0.6
         else:
-            # Allow terrain collision and self-collision for ALL geoms.
-            # This ensures knees and arms don't ghost through the ground.
+            # Self-collision only: exclude the terrain bit from affinity.
             geom.condim = 3
-            geom.contype = terrain_bit | robot_self_bit
-            geom.conaffinity = terrain_bit | robot_self_bit
+            geom.contype = robot_self_bit
+            geom.conaffinity = robot_self_bit
 
     return spec
 
@@ -235,9 +234,9 @@ HU_D03_ACTION_SCALE: dict[str, float] = {}
 for _act in HU_D03_ARTICULATION.actuators:
     assert isinstance(_act, BuiltinPositionActuatorCfg)
     for _n in _act.target_names_expr:
-        # Leg joints (hips, knees, ankles) and waist need realistic range (0.25 rad ≈ 14.3 deg)
+        # Leg joints (hips, knees, ankles) and waist need realistic range (0.80 rad ≈ 45.8 deg)
         if any(keyword in _n for keyword in ("hip", "knee", "achilles", "waist")):
-            HU_D03_ACTION_SCALE[_n] = 0.25
+            HU_D03_ACTION_SCALE[_n] = 0.80
         else:
             HU_D03_ACTION_SCALE[_n] = 0.30
 
