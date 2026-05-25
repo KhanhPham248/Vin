@@ -109,3 +109,98 @@ def stand_still(
         reward *= scale
         
     return reward
+
+
+# ── Reward: Foot Contact Asymmetry Penalty ───────────────────────────────────
+
+def contact_asymmetry(
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+    command_name: str,
+    command_threshold: float = 0.1,
+) -> torch.Tensor:
+    """Penalize asymmetric foot contact duration between left and right feet."""
+    sensor: ContactSensor = env.scene[sensor_name]
+    contact_time = sensor.data.current_contact_time # Shape: [num_envs, 2] (left, right)
+    
+    # Absolute difference in contact time between Left and Right feet
+    asym = torch.abs(contact_time[:, 0] - contact_time[:, 1])
+    
+    # Negative reward (penalty)
+    penalty = -asym
+    
+    # Only active when commanded to move
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+        total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+        scale = (total_command > command_threshold).float()
+        penalty *= scale
+        
+    return penalty
+
+
+# ── Reward: Contact Duration Penalty (Peg-Leg Prevention) ─────────────────────
+
+def contact_duration_penalty(
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+    command_name: str,
+    max_duration: float = 0.6,
+    command_threshold: float = 0.1,
+) -> torch.Tensor:
+    """Penalize feet that remain in contact with the ground for too long when moving."""
+    sensor: ContactSensor = env.scene[sensor_name]
+    contact_time = sensor.data.current_contact_time # Shape: [num_envs, 2]
+    
+    # Penalize any foot whose contact time exceeds max_duration
+    excess_time = torch.clamp(contact_time - max_duration, min=0.0)
+    penalty = -torch.sum(excess_time, dim=1)
+    
+    # Only active when commanded to move
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+        total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+        scale = (total_command > command_threshold).float()
+        penalty *= scale
+        
+    return penalty
+
+
+# ── Reward: Touchdown-only Air Time Reward ───────────────────────────────────
+
+def feet_air_time_touchdown(
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+    threshold_min: float = 0.05,
+    threshold_max: float = 0.5,
+    command_name: str | None = None,
+    command_threshold: float = 0.1,
+) -> torch.Tensor:
+    """Reward feet air time ONLY at the moment of touchdown.
+    
+    This completely prevents "air-rowing" or keeping one foot in the air indefinitely
+    since a foot must actively land to receive the reward.
+    """
+    sensor: ContactSensor = env.scene[sensor_name]
+    
+    # Detect touchdown: foot has just landed in this step (contact started within env.step_dt)
+    touchdown = sensor.compute_first_contact(env.step_dt)
+    
+    # Get the duration of the completed air phase
+    air_time = sensor.data.last_air_time
+    
+    # Only reward if the completed air time was in the target range
+    reward_per_foot = (air_time - threshold_min) * touchdown.float()
+    
+    reward = torch.sum(reward_per_foot, dim=1)
+    
+    # Only active when commanded to move
+    if command_name is not None:
+        command = env.command_manager.get_command(command_name)
+        if command is not None:
+            total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+            scale = (total_command > command_threshold).float()
+            reward *= scale
+            
+    return reward
+

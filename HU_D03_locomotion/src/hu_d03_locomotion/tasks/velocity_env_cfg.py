@@ -14,6 +14,7 @@ from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import (
     ContactMatch,
     ContactSensorCfg,
@@ -27,6 +28,7 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 
 from hu_d03_locomotion.robots import HU_D03_ACTION_SCALE, get_hu_d03_robot_cfg
+from hu_d03_locomotion.tasks import mdp_unitree
 
 
 # Shared constants
@@ -97,6 +99,12 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # ── Robot ─────────────────────────────────────────────────────────────
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
+    # Restrict joint state observations to actuated joints only.
+    actuated_asset_cfg = SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
+    for grp in ("actor", "critic"):
+        cfg.observations[grp].terms["joint_pos"].params["asset_cfg"] = actuated_asset_cfg
+        cfg.observations[grp].terms["joint_vel"].params["asset_cfg"] = actuated_asset_cfg
+
     # ── Flat terrain (no raycast needed) ──────────────────────────────────
     assert cfg.scene.terrain is not None
     cfg.scene.terrain.terrain_type = "plane"
@@ -135,7 +143,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             )
             sensor.pattern = RingPatternCfg.single_ring(radius=0.03, num_samples=6)
 
-    # Self-collision detector (pelvis subtree vs itself)
+    # Self-collision detector (robot vs robot).
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
         primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -222,20 +230,54 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*head.*":      0.15,
     }
 
-    # Tinh chỉnh dải Gaussian để triệt tiêu điểm rò rỉ khi đứng im
-    cfg.rewards["track_linear_velocity"].params["std"] = 0.20
-    cfg.rewards["track_angular_velocity"].params["std"] = 0.40
+    # Nới rộng dải Gaussian để tăng tín hiệu Gradient trong giai đoạn đầu học đi
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.25
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.50
     cfg.rewards["track_linear_velocity"].weight = 3.0
 
     cfg.rewards["foot_clearance"].weight = 0.0  # Tắt ở Flat, chỉ bật ở Rough
     cfg.rewards["action_rate_l2"].weight = -0.05 # Tăng phạt để chống rung giật tần số cao
     cfg.rewards["soft_landing"].weight = -0.05
-    cfg.rewards["foot_slip"].weight = -0.20      # Tăng phạt trượt chân để tránh hiện tượng lê/chèo chân tại chỗ
+    cfg.rewards["foot_slip"].weight = -0.05
     cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02 # Trả về mức chuẩn của G1
-    cfg.rewards["air_time"].weight = 0.3   # Giảm mạnh trọng số để phá vỡ thế kẹt đứng im đạp chân ăn điểm
-    cfg.rewards["air_time"].params["command_threshold"] = 0.1  # Fix: Kích hoạt thưởng bay chân ngay cả khi đi chậm (vận tốc > 0.1)
+    
+    # ── Touchdown-only Air Time Reward (Prevents "Air-Rowing" reward hacking) ──
+    cfg.rewards["air_time"] = RewardTermCfg(
+        func=mdp_unitree.feet_air_time_touchdown,
+        weight=1.5,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "threshold_min": 0.05,
+            "threshold_max": 0.5,
+            "command_name": "twist",
+            "command_threshold": 0.1,
+        },
+    )
+
+    # ── Contact Asymmetry Penalty (Prevents asymmetric "peg-leg" locomotion) ────
+    cfg.rewards["contact_asymmetry"] = RewardTermCfg(
+        func=mdp_unitree.contact_asymmetry,
+        weight=-1.5,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "command_name": "twist",
+            "command_threshold": 0.1,
+        },
+    )
+
+    # ── Contact Duration Penalty (Forces bipedal foot lifting) ──────────────────
+    cfg.rewards["contact_duration_penalty"] = RewardTermCfg(
+        func=mdp_unitree.contact_duration_penalty,
+        weight=-2.0,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "command_name": "twist",
+            "max_duration": 0.5,
+            "command_threshold": 0.1,
+        },
+    )
 
     # ── Self-collision penalty ─────────────────────────────────────────────
     cfg.rewards["self_collisions"] = RewardTermCfg(
@@ -295,6 +337,12 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.scene.entities = {"robot": get_hu_d03_robot_cfg()}
 
+    # Restrict joint state observations to actuated joints only.
+    actuated_asset_cfg = SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
+    for grp in ("actor", "critic"):
+        cfg.observations[grp].terms["joint_pos"].params["asset_cfg"] = actuated_asset_cfg
+        cfg.observations[grp].terms["joint_vel"].params["asset_cfg"] = actuated_asset_cfg
+
     # Raycast sensor frame → base_link (G1 uses pelvis)
     for sensor in cfg.scene.sensors or ():
         if sensor.name == "terrain_scan":
@@ -322,6 +370,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         num_slots=1,
         track_air_time=True,
     )
+
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
         primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -331,6 +380,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         num_slots=1,
         history_length=4,
     )
+
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (
         feet_ground_cfg,
         self_collision_cfg,
@@ -367,17 +417,52 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r".*shoulder.*": 0.10,  r".*elbow.*": 0.10,
         r".*wrist.*": 0.20,     r".*hand.*": 0.20, r".*head.*": 0.15,
     }
-    cfg.rewards["track_linear_velocity"].params["std"] = 0.20
-    cfg.rewards["track_angular_velocity"].params["std"] = 0.40
+    cfg.rewards["track_linear_velocity"].params["std"] = 0.25
+    cfg.rewards["track_angular_velocity"].params["std"] = 0.50
     cfg.rewards["foot_clearance"].weight = 0.0
     cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.05
-    cfg.rewards["foot_slip"].weight = -0.20
+    cfg.rewards["foot_slip"].weight = -0.05
     cfg.rewards["upright"].weight = 1.0
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
-    cfg.rewards["air_time"].weight = 0.3
-    cfg.rewards["air_time"].params["command_threshold"] = 0.1
+    
+    # ── Touchdown-only Air Time Reward (Prevents "Air-Rowing" reward hacking) ──
+    cfg.rewards["air_time"] = RewardTermCfg(
+        func=mdp_unitree.feet_air_time_touchdown,
+        weight=1.5,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "threshold_min": 0.05,
+            "threshold_max": 0.5,
+            "command_name": "twist",
+            "command_threshold": 0.1,
+        },
+    )
+
+    # ── Contact Asymmetry Penalty (Prevents asymmetric "peg-leg" locomotion) ────
+    cfg.rewards["contact_asymmetry"] = RewardTermCfg(
+        func=mdp_unitree.contact_asymmetry,
+        weight=-1.5,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "command_name": "twist",
+            "command_threshold": 0.1,
+        },
+    )
+
+    # ── Contact Duration Penalty (Forces bipedal foot lifting) ──────────────────
+    cfg.rewards["contact_duration_penalty"] = RewardTermCfg(
+        func=mdp_unitree.contact_duration_penalty,
+        weight=-2.0,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "command_name": "twist",
+            "max_duration": 0.5,
+            "command_threshold": 0.1,
+        },
+    )
+
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
         weight=-1.0,

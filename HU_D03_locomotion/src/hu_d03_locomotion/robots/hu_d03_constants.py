@@ -7,7 +7,6 @@ import mujoco
 
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.spec_config import CollisionCfg
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -18,7 +17,50 @@ assert HU_D03_XML.exists(), f"HU_D03 XML not found: {HU_D03_XML}"
 
 
 def get_spec() -> mujoco.MjSpec:
-    return mujoco.MjSpec.from_file(str(HU_D03_XML))
+    """Load HU_D03 spec and apply collision bitmasks.
+
+    Notes:
+        - The HU_D03 MJCF leaves most collision geoms unnamed (name=""), so the
+          regex-based `CollisionCfg` cannot reliably match/disable them.
+        - We therefore edit collision fields directly on the spec geoms.
+
+    Collision policy:
+        - Non-foot primitive collision geoms: self-collision only (no terrain).
+        - Feet: collide with terrain and other robot geoms.
+        - Visual mesh geoms and contact marker spheres stay non-collidable.
+    """
+
+    spec = mujoco.MjSpec.from_file(str(HU_D03_XML))
+
+    # Keep terrain default bit (1) intact; use a dedicated bit (4) for robot self-collision.
+    terrain_bit = 1
+    robot_self_bit = 4
+    feet_bits = terrain_bit | robot_self_bit
+
+    for geom in spec.geoms:
+        # Skip anything already non-collidable (visual meshes, contact markers, etc.).
+        if geom.contype == 0 and geom.conaffinity == 0:
+            continue
+
+        # Never enable collisions on mesh geoms (they are visual-only in this MJCF).
+        if geom.type == mujoco.mjtGeom.mjGEOM_MESH:
+            geom.contype = 0
+            geom.conaffinity = 0
+            continue
+
+        if geom.name in ("left_foot", "right_foot"):
+            geom.condim = 3
+            geom.contype = feet_bits
+            geom.conaffinity = feet_bits
+            # Only override the primary friction coefficient (keep torsional/rolling).
+            geom.friction[0] = 0.6
+        else:
+            # Self-collision only: exclude the terrain bit from affinity.
+            geom.condim = 3
+            geom.contype = robot_self_bit
+            geom.conaffinity = robot_self_bit
+
+    return spec
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +193,8 @@ HU_D03_ARTICULATION = EntityArticulationInfoCfg(
 # NOTE: Calibrate these values with view_mujoco.py if robot doesn't stand correctly.
 # ---------------------------------------------------------------------------
 
+# TODO: Verify height 0.87 with `play.py` before long training runs.
+# If robot sinks into terrain → increase to 0.92. If it floats → decrease.
 HOME_KEYFRAME = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 0.87),
     joint_pos={
@@ -183,16 +227,6 @@ HOME_KEYFRAME = EntityCfg.InitialStateCfg(
 )
 
 # ---------------------------------------------------------------------------
-# Collision config — only feet contact terrain/objects
-# ---------------------------------------------------------------------------
-
-HU_D03_COLLISION = CollisionCfg(
-    geom_names_expr=("left_foot", "right_foot"),
-    condim=3,
-    friction=(0.6,),
-)
-
-# ---------------------------------------------------------------------------
 # Action scale (Using fixed rad scales to prevent high stiffness paralysis)
 # ---------------------------------------------------------------------------
 
@@ -215,7 +249,7 @@ def get_hu_d03_robot_cfg() -> EntityCfg:
     """Return a fresh HU_D03 EntityCfg (call each time to avoid mutation)."""
     return EntityCfg(
         init_state=HOME_KEYFRAME,
-        collisions=(HU_D03_COLLISION,),
+        collisions=(),
         spec_fn=get_spec,
         articulation=HU_D03_ARTICULATION,
     )

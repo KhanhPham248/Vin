@@ -43,26 +43,15 @@
 
 ---
 
-## 3. Tinh Chỉnh Dải Gaussian Bám Vận Tốc (Gradient Balance)
-- **Vấn đề:** Sai số tiêu chuẩn bám vận tốc đặt quá hẹp (`std = 0.15`) gây triệt tiêu gradient ban đầu, nhưng khi nới lên quá rộng (`0.25`), robot lại chọn đứng im ăn rò rỉ điểm vận tốc.
-- **Giải pháp:** Tinh chỉnh về mức tối ưu **`0.20`** cho vận tốc dài và **`0.40`** cho vận tốc góc để vừa giữ gradient tốt vừa giảm rò rỉ điểm khi đứng im xuống sát 0.
+## 3. Nới Rộng Dải Gaussian Bám Vận Tốc (Gradient Rescue)
+- **Vấn đề:** Sai số tiêu chuẩn bám vận tốc đặt quá hẹp (`std = 0.15`) khiến cảnh quan phần thưởng cực kỳ thưa thớt (sparse reward). Khi robot chớm nhúc nhích đúng hướng (với sai số ~0.3 m/s), điểm thưởng nó nhận được gần như bằng 0, làm triệt tiêu tín hiệu gradient huấn luyện của PPO.
+- **Giải pháp:** Nới rộng dải Gaussian để khích lệ robot ngay từ khi chớm di chuyển:
+  *   Bám vận tốc dài (`lin_vel`): Tăng `std` từ `0.15` lên **`0.25`** ($std^2 = 0.0625$).
+  *   Bám vận tốc góc (`ang_vel`): Tăng `std` từ `0.25` lên **`0.50`** ($std^2 = 0.25$).
 - **Code thay đổi trong `velocity_env_cfg.py`:**
   ```python
-  cfg.rewards["track_linear_velocity"].params["std"] = 0.20
-  cfg.rewards["track_angular_velocity"].params["std"] = 0.40
-  ```
-
----
-
-## 4. Bẻ Gãy Nghiệm Cục Bộ Đứng Im Chèo Chân (Reward Hacking Breakout)
-- **Vấn đề:** Robot đứng im tại chỗ (bảo toàn tính mạng, ăn điểm `upright`) và liên tục đạp/chèo một chân lên xuống để "vắt sữa" điểm thưởng `air_time` mà không chịu đi thật.
-- **Giải pháp:** 
-  1. Giảm mạnh trọng số thưởng bay chân `air_time` từ `1.0` xuống **`0.3`** để triệt tiêu sức hút của việc đạp chân ăn điểm.
-  2. Tăng hình phạt trượt chân `foot_slip` từ `-0.05` lên **`-0.20`** để trừng phạt động tác cào chân lê lết dưới mặt đất.
-- **Code thay đổi trong `velocity_env_cfg.py`:**
-  ```python
-  cfg.rewards["air_time"].weight = 0.3
-  cfg.rewards["foot_slip"].weight = -0.20
+  cfg.rewards["track_linear_velocity"].params["std"] = 0.25
+  cfg.rewards["track_angular_velocity"].params["std"] = 0.50
   ```
 
 ---

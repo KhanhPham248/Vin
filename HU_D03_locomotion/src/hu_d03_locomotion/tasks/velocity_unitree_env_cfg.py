@@ -63,6 +63,9 @@ def _apply_unitree_overrides(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
         }
     )
 
+    # 5 & 6. contact_asymmetry and contact_duration_penalty are already injected
+    # by the base flat/rough config (velocity_env_cfg.py). No need to re-declare here.
+
     return cfg
 
 
