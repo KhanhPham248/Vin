@@ -19,7 +19,7 @@ from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 
-from hu_d03_locomotion.tasks import mdp_unitree
+from hu_d03_locomotion.tasks import mdp_gait
 
 from hu_d03_locomotion.robots import HU_D03_ACTION_SCALE, get_hu_d03_robot_cfg
 
@@ -207,7 +207,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["foot_clearance"].weight = -1.0  
     cfg.rewards["foot_clearance"].params["target_height"] = 0.10
     cfg.rewards["foot_gait"] = RewardTermCfg(
-        func=mdp_unitree.feet_gait,
+        func=mdp_gait.feet_gait,
         weight=0.5,
         params={
             "period": 0.65,
@@ -224,7 +224,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-150.0
     )
     cfg.rewards["feet_stuck"] = RewardTermCfg(
-        func=mdp_unitree.feet_stuck_penalty,
+        func=mdp_gait.feet_stuck_penalty,
         weight=-2.0,
         params={"command_name": "twist", "sensor_name": "feet_ground_contact", "command_threshold": 0.1}
     )
@@ -247,13 +247,13 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
 
     cfg.rewards["arm_velocity_penalty"] = RewardTermCfg(
-        func=mdp_unitree.arm_velocity_penalty,
+        func=mdp_gait.arm_velocity_penalty,
         weight=-0.005,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*_shoulder_.*", ".*_elbow_.*", ".*_wrist_.*"))}
     )
 
     cfg.rewards["stand_still"] = RewardTermCfg(
-        func=mdp_unitree.stand_still,
+        func=mdp_gait.stand_still,
         weight=-1.0,
         params={
             "command_name": "twist",
@@ -278,11 +278,11 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.terminations["fell_over"].params["limit_angle"] = limit
 
     cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
-        func=mdp_unitree.phase,
+        func=mdp_gait.phase,
         params={"period": 0.65, "command_name": "twist"},
     )
     cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
-        func=mdp_unitree.phase,
+        func=mdp_gait.phase,
         params={"period": 0.65, "command_name": "twist"},
     )
 
@@ -402,7 +402,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["foot_clearance"].weight = -1.0
     cfg.rewards["foot_clearance"].params["target_height"] = 0.10
     cfg.rewards["foot_gait"] = RewardTermCfg(
-        func=mdp_unitree.feet_gait,
+        func=mdp_gait.feet_gait,
         weight=0.5,
         params={
             "period": 0.65,
@@ -419,7 +419,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-150.0
     )
     cfg.rewards["feet_stuck"] = RewardTermCfg(
-        func=mdp_unitree.feet_stuck_penalty,
+        func=mdp_gait.feet_stuck_penalty,
         weight=-2.0,
         params={"command_name": "twist", "sensor_name": "feet_ground_contact", "command_threshold": 0.1}
     )
@@ -447,13 +447,13 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
 
     cfg.rewards["arm_velocity_penalty"] = RewardTermCfg(
-        func=mdp_unitree.arm_velocity_penalty,
+        func=mdp_gait.arm_velocity_penalty,
         weight=-0.005,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*_shoulder_.*", ".*_elbow_.*", ".*_wrist_.*"))}
     )
 
     cfg.rewards["stand_still"] = RewardTermCfg(
-        func=mdp_unitree.stand_still,
+        func=mdp_gait.stand_still,
         weight=-1.0,
         params={
             "command_name": "twist",
@@ -474,11 +474,11 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.terminations["fell_over"].params["limit_angle"] = limit
 
     cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
-        func=mdp_unitree.phase,
+        func=mdp_gait.phase,
         params={"period": 0.65, "command_name": "twist"},
     )
     cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
-        func=mdp_unitree.phase,
+        func=mdp_gait.phase,
         params={"period": 0.65, "command_name": "twist"},
     )
 
