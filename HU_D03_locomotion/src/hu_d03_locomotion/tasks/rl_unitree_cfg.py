@@ -1,4 +1,4 @@
-"""Cấu hình PPO runner theo phong cách Unitree cho HU_D03."""
+"""Cấu hình PPO runner theo Unitree cho HU_D03."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from hu_d03_locomotion.tasks.rl_cfg import (
 
 
 def hu_d03_flat_unitree_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """Cấu hình PPO cho môi trường mặt phẳng (phong cách Unitree)."""
+    """Cấu hình PPO cho môi trường mặt phẳng."""
     cfg = get_base_flat_runner_cfg()
     cfg.experiment_name = "hu_d03_flat_unitree"
     cfg.wandb_project = "hu_d03_locomotion_unitree"
@@ -18,7 +18,7 @@ def hu_d03_flat_unitree_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
 
 
 def hu_d03_rough_unitree_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """Cấu hình PPO cho môi trường gồ ghề (phong cách Unitree)."""
+    """Cấu hình PPO cho môi trường gồ ghề ."""
     cfg = get_base_rough_runner_cfg()
     cfg.experiment_name = "hu_d03_rough_unitree"
     cfg.wandb_project = "hu_d03_locomotion_unitree"

@@ -1,5 +1,3 @@
-"""Cấu hình môi trường động theo phong cách Unitree cho HU_D03."""
-
 from __future__ import annotations
 
 import copy
@@ -17,7 +15,6 @@ from hu_d03_locomotion.tasks.velocity_env_cfg import (
 
 
 def _apply_unitree_overrides(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
-    """Áp dụng các cấu hình Unitree (quan sát pha, phần thưởng) vào cấu hình môi trường."""
     cfg = copy.deepcopy(cfg)
 
     cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
