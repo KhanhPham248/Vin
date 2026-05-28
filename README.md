@@ -1,4 +1,4 @@
-# HU_D03_03: Hệ Thống Huấn Luyện Học Tăng Cường (RL) Cho Robot Humanoid HU_D03
+# Khung Huấn Luyện Học Tăng Cường (RL) Cho Robot Humanoid HU_D03
 
 Dự án phát triển chính thức các chính sách điều khiển (Locomotion) và bắt chước chuyển động (Mimic) tối ưu cho dòng robot Humanoid 31 bậc tự do (31 DOF) **HU_D03**. Dự án được xây dựng và tối ưu hóa trên nền tảng **mjlab** hỗ trợ mô phỏng vật lý MuJoCo tốc độ cao song song hóa cực đại qua NVIDIA Warp (CUDA).
 
@@ -16,22 +16,19 @@ Dự án phát triển chính thức các chính sách điều khiển (Locomoti
 ## 📁 Cấu Trúc Thư Mục Dự Án
 
 ```text
-HU_D03_03/
-├── assets/                     # Tài nguyên 3D meshes và file cấu hình XML của robot
-│   ├── motions/                # Nơi lưu trữ dữ liệu chuyển động mẫu (.npz) cho Mimic
-│   └── robots/hu_d03/          # File mô hình XML chính thức của robot HU_D03
-├── configs/                    # Các file cấu hình hệ thống
-├── scripts/                    # Scripts tiện ích chính
-│   ├── train.py                # Script huấn luyện chính (Locomotion & Mimic)
-│   ├── play.py                 # Script chạy chính sách đã huấn luyện kèm UI hiển thị
-│   └── csv_to_npz.py           # Tiện ích chuyển đổi dữ liệu CSV -> NPZ
-├── src/hu_d03_03/              # Mã nguồn lõi của gói dự án
-│   ├── robots/                 # Hằng số, tỷ lệ mô-men xoắn, tư thế chuẩn ban đầu (Home keyframe)
-│   └── tasks/                  # Định nghĩa môi trường RL
-│       ├── velocity/           # Tác vụ đi bộ (Locomotion: Flat & Rough)
-│       └── mimic/              # Tác vụ bắt chước chuyển động (Mimic Flat)
-├── pyproject.toml              # Quản lý dependency và cấu hình cài đặt dự án dạng editable
-└── README.md                   # Tài liệu hướng dẫn sử dụng chính thức
+Vin/ 
+├── HU_D03_03/                  # Thư mục dự án huấn luyện chính (31 DOF)
+│   ├── assets/                 # Tài nguyên 3D meshes và file mô hình XML robot
+│   │   ├── motions/            # Nơi lưu trữ dữ liệu chuyển động mẫu (.npz) cho Mimic
+│   │   └── robots/hu_d03/      # File mô hình XML chính thức của robot HU_D03
+│   ├── configs/                # Các file cấu hình hệ thống
+│   ├── scripts/                # Scripts chạy huấn luyện (train.py, play.py, csv_to_npz.py)
+│   ├── src/hu_d03_03/          # Mã nguồn lõi (tasks/velocity, tasks/mimic)
+│   └── pyproject.toml          # Quản lý dependency và cấu hình gói dự án
+├── mjlab/                      # Framework mô phỏng MuJoCo + Warp lõi của dự án
+│   └── mjlab-main/             # Mã nguồn thư viện mô phỏng song song
+├── humanoid-description/       # Thư mục lưu trữ mô tả URDF/MJCF của các dòng robot
+└── README.md                   # Tài liệu hướng dẫn sử dụng chính của workspace
 ```
 
 ---
@@ -89,5 +86,5 @@ python scripts/csv_to_npz.py --input-file <ĐƯỜNG_DẪN_TỚI_FILE_CSV> --out
 python scripts/csv_to_npz.py --input-file ../unitree_rl_mjlab-main/src/assets/motions/g1/dance1_subject2.csv --output-name hu_d03_motion.npz
 ```
 
-> ⚠️ **Lưu ý:** File CSV đầu vào cần có đủ 38 cột tương ứng cho vị trí gốc, hướng Quaternion và góc xoay của 31 khớp robot HU_D03_03 theo đúng thứ tự.
+
 
