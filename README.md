@@ -1,4 +1,4 @@
-# Khung Huấn Luyện Học Tăng Cường (RL) Cho Robot Humanoid HU_D03
+# Huấn Luyện Học Tăng Cường Cho Robot Humanoid HU_D03
 
 Dự án phát triển chính thức các chính sách điều khiển (Locomotion) và bắt chước chuyển động (Mimic) tối ưu cho dòng robot Humanoid 31 bậc tự do (31 DOF) **HU_D03**. Dự án được xây dựng và tối ưu hóa trên nền tảng **mjlab** hỗ trợ mô phỏng vật lý MuJoCo tốc độ cao song song hóa cực đại qua NVIDIA Warp (CUDA).
 
