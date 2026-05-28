@@ -1,0 +1,12 @@
+# logs/
+logs/**/*.pt
+!logs/**/model_1600.pt
+__pycache__/
+*.pyc
+.venv/
+dist/
+*.egg-info/
+wandb/
+*.zip
+*.tar.gz
+*.tar.gz
