@@ -39,17 +39,17 @@ def hu_d03_flat_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
             desired_kl=0.01,
             max_grad_norm=1.0,
         ),
-        experiment_name="hu_d03_flat",
+        experiment_name="hu_d03_flat_unitree",
         save_interval=100,
         num_steps_per_env=24,
         max_iterations=7000,
-        wandb_project="hu_d03_locomotion",
+        wandb_project="hu_d03_locomotion_unitree",
     )
 
 
 def hu_d03_rough_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     """Cấu hình PPO cho môi trường gồ ghề."""
     cfg = hu_d03_flat_ppo_runner_cfg()
-    cfg.experiment_name = "hu_d03_rough"
+    cfg.experiment_name = "hu_d03_rough_unitree"
     cfg.max_iterations = 30_000
     return cfg

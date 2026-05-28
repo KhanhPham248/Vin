@@ -3,6 +3,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -161,8 +162,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("waist_pitch_link",)
 
-    for reward_name in ("foot_clearance", "foot_slip"):
-        cfg.rewards[reward_name].params["asset_cfg"].site_names = FOOT_SITE_NAMES
+    cfg.rewards["foot_clearance"].params["asset_cfg"].site_names = FOOT_SITE_NAMES
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = ACTUATED_JOINT_NAMES
     cfg.rewards["pose"].params["std_standing"] = {".*": 0.05}
@@ -210,7 +210,7 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp_unitree.feet_gait,
         weight=0.5,
         params={
-            "period": 0.60,
+            "period": 0.65,
             "offset": [0.0, 0.5],
             "threshold": 0.56,
             "command_threshold": 0.1,
@@ -218,8 +218,6 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "sensor_name": "feet_ground_contact",
         }
     )
-    cfg.rewards["foot_swing_height"].weight = -0.05 
-    cfg.rewards["foot_swing_height"].params["target_height"] = 0.15
 
     cfg.rewards["is_terminated"] = RewardTermCfg(
         func=mdp.is_terminated,
@@ -238,7 +236,6 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.rewards["action_rate_l2"].weight = -0.05 
     cfg.rewards["soft_landing"].weight = -0.001
-    cfg.rewards["foot_slip"].weight = -0.25  
     
     cfg.rewards["body_ang_vel"].weight = -0.1
     cfg.rewards["angular_momentum"].weight = -0.01
@@ -258,7 +255,11 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["stand_still"] = RewardTermCfg(
         func=mdp_unitree.stand_still,
         weight=-1.0,
-        params={"command_name": "twist", "command_threshold": 0.1, "asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
+        params={
+            "command_name": "twist",
+            "command_threshold": 0.1,
+            "asset_cfg": SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
+        }
     )
 
     cfg.curriculum.pop("terrain_levels", None)
@@ -275,6 +276,19 @@ def hu_d03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.terminations.pop("out_of_terrain_bounds", None)
     limit = math.radians(70.0)
     cfg.terminations["fell_over"].params["limit_angle"] = limit
+
+    cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
+        func=mdp_unitree.phase,
+        params={"period": 0.65, "command_name": "twist"},
+    )
+    cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
+        func=mdp_unitree.phase,
+        params={"period": 0.65, "command_name": "twist"},
+    )
+
+    cfg.rewards.pop("air_time", None)
+    cfg.rewards.pop("foot_swing_height", None)
+    cfg.rewards.pop("foot_slip", None)
 
     if play:
         cfg.episode_length_s = int(1e9)
@@ -357,10 +371,8 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.viewer.body_name = "base_link"
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = FOOT_GEOM_NAMES
     cfg.events["base_com"].params["asset_cfg"].body_names = ("base_link",)
-    cfg.rewards["upright"].params["asset_cfg"].body_names = ("waist_pitch_link",)
     cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("waist_pitch_link",)
-    for reward_name in ("foot_clearance", "foot_slip"):
-        cfg.rewards[reward_name].params["asset_cfg"].site_names = FOOT_SITE_NAMES
+    cfg.rewards["foot_clearance"].params["asset_cfg"].site_names = FOOT_SITE_NAMES
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = ACTUATED_JOINT_NAMES
     cfg.rewards["pose"].params["std_standing"] = {".*": 0.05}
@@ -393,7 +405,7 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp_unitree.feet_gait,
         weight=0.5,
         params={
-            "period": 0.60,
+            "period": 0.65,
             "offset": [0.0, 0.5],
             "threshold": 0.56,
             "command_threshold": 0.1,
@@ -401,8 +413,6 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "sensor_name": "feet_ground_contact",
         }
     )
-    cfg.rewards["foot_swing_height"].weight = -0.05
-    cfg.rewards["foot_swing_height"].params["target_height"] = 0.15
 
     cfg.rewards["is_terminated"] = RewardTermCfg(
         func=mdp.is_terminated,
@@ -420,10 +430,8 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.rewards["action_rate_l2"].weight = -0.05
     cfg.rewards["soft_landing"].weight = -0.001
-    cfg.rewards["foot_slip"].weight = -0.25
 
-    if "upright" in cfg.rewards:
-        cfg.rewards.pop("upright")
+    cfg.rewards.pop("upright", None)
     cfg.rewards["flat_orientation_l2"] = RewardTermCfg(
         func=mdp.flat_orientation_l2,
         weight=-1.0,
@@ -447,7 +455,11 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["stand_still"] = RewardTermCfg(
         func=mdp_unitree.stand_still,
         weight=-1.0,
-        params={"command_name": "twist", "command_threshold": 0.1, "asset_cfg": SceneEntityCfg("robot", joint_names=".*")}
+        params={
+            "command_name": "twist",
+            "command_threshold": 0.1,
+            "asset_cfg": SceneEntityCfg("robot", joint_names=ACTUATED_JOINT_NAMES)
+        }
     )
 
     limit = math.radians(70.0)
@@ -460,6 +472,19 @@ def hu_d03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.curriculum.pop("command_vel", None)
     cfg.terminations["fell_over"].params["limit_angle"] = limit
+
+    cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
+        func=mdp_unitree.phase,
+        params={"period": 0.65, "command_name": "twist"},
+    )
+    cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
+        func=mdp_unitree.phase,
+        params={"period": 0.65, "command_name": "twist"},
+    )
+
+    cfg.rewards.pop("air_time", None)
+    cfg.rewards.pop("foot_swing_height", None)
+    cfg.rewards.pop("foot_slip", None)
 
     if play:
         cfg.episode_length_s = int(1e9)
