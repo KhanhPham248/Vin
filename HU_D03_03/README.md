@@ -7,13 +7,9 @@ Dự án phát triển chính thức các chính sách điều khiển (Locomoti
 ## 📌 Các Tính Năng Nổi Bật
 
 * **Hỗ Trợ Tối Đa 31 DOF:** Cấu hình chuẩn khớp toàn thân bao gồm cả chân nâng cao (achilles joints), hông, eo (waist), tay (shoulder/elbow/wrist) và đầu.
-* **Gom Nhóm Tác Vụ Khoa Học:** Tách biệt rõ ràng hai nhánh huấn luyện quan trọng:
+* **Nhóm Tác Vụ Khoa Học:** 
   1. **Locomotion (Điều khiển di chuyển):** Học đi bộ đa hướng linh hoạt trên địa hình phẳng và địa hình gồ ghề phức tạp.
   2. **Mimic (Bắt chước chuyển động mẫu):** Học cách tái hiện mượt mà các chuỗi hành động mẫu phức tạp từ tệp dữ liệu chuyển động (như nhảy múa, chạy, cử chỉ).
-* **Đồng Bộ Hoàn Hảo Logs & WandB:**
-  * Toàn bộ log cục bộ được lưu tách biệt rõ ràng theo từng loại tác vụ dưới tên dự án thống nhất.
-  * Tích hợp đẩy log trực tiếp lên hệ thống **Weights & Biases (WandB)** với chung project `hu_d03_03` để dễ dàng so sánh đồ thị hội tụ giữa các tác vụ.
-* **Bộ Tiện Ích Động Học Ngược:** Script tích hợp thông minh để chuyển đổi dữ liệu thô dạng CSV từ cảm biến mocap/con người thành mảng nén NPZ tương thích MuJoCo.
 
 ---
 
@@ -95,5 +91,3 @@ python scripts/csv_to_npz.py --input-file ../unitree_rl_mjlab-main/src/assets/mo
 
 > ⚠️ **Lưu ý:** File CSV đầu vào cần có đủ 38 cột tương ứng cho vị trí gốc, hướng Quaternion và góc xoay của 31 khớp robot HU_D03_03 theo đúng thứ tự.
 
----
-*Chúc bạn huấn luyện robot HU_D03_03 thành công đạt dáng đi tự nhiên nhất!*
