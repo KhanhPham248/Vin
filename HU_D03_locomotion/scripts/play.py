@@ -1,12 +1,11 @@
-"""Play/evaluation entry point for HU_D03 locomotion."""
+"""Điểm bắt đầu chạy đánh giá cho HU_D03."""
 
 import sys
 from pathlib import Path
 
+# Cấu hình đường dẫn hệ thống
 _ROOT = Path(__file__).parent.parent
-# Add our package src
 sys.path.insert(0, str(_ROOT / "src"))
-# Add mjlab src (sibling folder) so import works without pip install
 sys.path.insert(0, str(_ROOT.parent / "mjlab" / "mjlab-main" / "src"))
 
 import importlib

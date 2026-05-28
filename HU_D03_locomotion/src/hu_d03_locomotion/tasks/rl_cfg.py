@@ -1,4 +1,4 @@
-"""PPO runner configuration for HU_D03 velocity task."""
+"""Cấu hình PPO runner cho tác vụ vận động của HU_D03."""
 
 from mjlab.rl import (
     RslRlModelCfg,
@@ -8,7 +8,7 @@ from mjlab.rl import (
 
 
 def hu_d03_flat_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """PPO config for HU_D03 flat-terrain training."""
+    """Cấu hình PPO cho môi trường mặt phẳng."""
     return RslRlOnPolicyRunnerCfg(
         actor=RslRlModelCfg(
             hidden_dims=(512, 256, 128),
@@ -16,7 +16,7 @@ def hu_d03_flat_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
             obs_normalization=True,
             distribution_cfg={
                 "class_name": "GaussianDistribution",
-                "init_std": 0.8,
+                "init_std": 1.0,
                 "std_type": "scalar",
             },
         ),
@@ -42,13 +42,13 @@ def hu_d03_flat_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
         experiment_name="hu_d03_flat",
         save_interval=100,
         num_steps_per_env=24,
-        max_iterations=5_000,
+        max_iterations=7000,
         wandb_project="hu_d03_locomotion",
     )
 
 
 def hu_d03_rough_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """PPO config for HU_D03 rough-terrain training (longer run)."""
+    """Cấu hình PPO cho môi trường gồ ghề."""
     cfg = hu_d03_flat_ppo_runner_cfg()
     cfg.experiment_name = "hu_d03_rough"
     cfg.max_iterations = 30_000

@@ -1,4 +1,4 @@
-"""HU_D03 robot constants — PD gains, keyframe, collision config, EntityCfg."""
+""""""
 
 import math
 from pathlib import Path
@@ -8,41 +8,24 @@ import mujoco
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 
 HU_D03_XML: Path = Path(__file__).parent.parent.parent.parent / "assets" / "robots" / "hu_d03" / "xmls" / "hu_d03.xml"
-assert HU_D03_XML.exists(), f"HU_D03 XML not found: {HU_D03_XML}"
+assert HU_D03_XML.exists(), f"Không tìm thấy XML của HU_D03: {HU_D03_XML}"
 
 
 def get_spec() -> mujoco.MjSpec:
-    """Load HU_D03 spec and apply collision bitmasks.
-
-    Notes:
-        - The HU_D03 MJCF leaves most collision geoms unnamed (name=""), so the
-          regex-based `CollisionCfg` cannot reliably match/disable them.
-        - We therefore edit collision fields directly on the spec geoms.
-
-    Collision policy:
-        - Non-foot primitive collision geoms: self-collision only (no terrain).
-        - Feet: collide with terrain and other robot geoms.
-        - Visual mesh geoms and contact marker spheres stay non-collidable.
-    """
+    """"""
 
     spec = mujoco.MjSpec.from_file(str(HU_D03_XML))
 
-    # Keep terrain default bit (1) intact; use a dedicated bit (4) for robot self-collision.
     terrain_bit = 1
     robot_self_bit = 4
     feet_bits = terrain_bit | robot_self_bit
 
     for geom in spec.geoms:
-        # Skip anything already non-collidable (visual meshes, contact markers, etc.).
         if geom.contype == 0 and geom.conaffinity == 0:
             continue
 
-        # Never enable collisions on mesh geoms (they are visual-only in this MJCF).
         if geom.type == mujoco.mjtGeom.mjGEOM_MESH:
             geom.contype = 0
             geom.conaffinity = 0
@@ -52,10 +35,8 @@ def get_spec() -> mujoco.MjSpec:
             geom.condim = 3
             geom.contype = feet_bits
             geom.conaffinity = feet_bits
-            # Only override the primary friction coefficient (keep torsional/rolling).
-            geom.friction[0] = 0.6
+            geom.friction[0] = 0.8
         else:
-            # Self-collision only: exclude the terrain bit from affinity.
             geom.condim = 3
             geom.contype = robot_self_bit
             geom.conaffinity = robot_self_bit
@@ -63,45 +44,27 @@ def get_spec() -> mujoco.MjSpec:
     return spec
 
 
-# ---------------------------------------------------------------------------
-# PD Gain Design
-#
-# Formula (same as G1):
-#   stiffness = armature * NATURAL_FREQ^2
-#   damping   = 2 * DAMPING_RATIO * armature * NATURAL_FREQ
-#
-# Armatures from XML:
-#   hip / knee joints:   0.15257125
-#   achilles joints:     0.094889232
-#   waist A/B joints:    0.094889232
-#   shoulder joints:     0.045760625
-#   wrist / head joints: 0.010625
-# ---------------------------------------------------------------------------
+LEG_NATURAL_FREQ = 8.0 * 2.0 * math.pi
+ARM_NATURAL_FREQ = 4.0 * 2.0 * math.pi
 
-NATURAL_FREQ = 10.0 * 2.0 * math.pi   # 10 Hz
-DAMPING_RATIO = 2.0
+DAMPING_RATIO = 1.5
 
 ARM_HIP_KNEE  = 0.15257125
 ARM_ACHILLES  = 0.094889232
 ARM_SHOULDER  = 0.045760625
 ARM_WRIST     = 0.010625
 
-def _gains(armature: float) -> tuple[float, float]:
-    kp = armature * NATURAL_FREQ ** 2
-    kd = 2.0 * DAMPING_RATIO * armature * NATURAL_FREQ
+def _gains(armature: float, freq: float) -> tuple[float, float]:
+    """"""
+    kp = armature * freq ** 2
+    kd = 2.0 * DAMPING_RATIO * armature * freq
     return kp, kd
 
-_kp_hk, _kd_hk = _gains(ARM_HIP_KNEE)    # hip + knee
-_kp_ac, _kd_ac = _gains(ARM_ACHILLES)     # achilles + waist A/B
-_kp_sh, _kd_sh = _gains(ARM_SHOULDER)     # shoulder/elbow
-_kp_wr, _kd_wr = _gains(ARM_WRIST)        # wrist + head
+_kp_hk, _kd_hk = _gains(ARM_HIP_KNEE, LEG_NATURAL_FREQ)
+_kp_ac, _kd_ac = _gains(ARM_ACHILLES, LEG_NATURAL_FREQ)
+_kp_sh, _kd_sh = _gains(ARM_SHOULDER, ARM_NATURAL_FREQ)
+_kp_wr, _kd_wr = _gains(ARM_WRIST, ARM_NATURAL_FREQ)
 
-# ---------------------------------------------------------------------------
-# Effort limits from XML actuator ctrlrange
-# ---------------------------------------------------------------------------
-
-# Hip / knee: ±120 Nm  |  Achilles / waist: ±45 Nm
-# Shoulder / elbow: ±30 Nm  |  Wrist / hand: ±18 Nm  |  Head: ±18 Nm
 
 HU_D03_ACTUATOR_HIP_KNEE = BuiltinPositionActuatorCfg(
     target_names_expr=(
@@ -116,7 +79,6 @@ HU_D03_ACTUATOR_HIP_KNEE = BuiltinPositionActuatorCfg(
     armature=ARM_HIP_KNEE,
 )
 
-# Achilles joints drive the ankle via 4-bar linkage (ankle joints are passive)
 HU_D03_ACTUATOR_ACHILLES = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_A_achilles_joint",
@@ -178,75 +140,50 @@ HU_D03_ARTICULATION = EntityArticulationInfoCfg(
     soft_joint_pos_limit_factor=0.9,
 )
 
-# ---------------------------------------------------------------------------
-# Keyframe — Standing Pose
-#
-# Height estimate:
-#   hip → knee: 0.3045 m
-#   knee → ankle_pitch: 0.3855 m
-#   ankle_pitch → foot bottom: ~0.062 m
-#   Total hip height ≈ 0.752 m
-#   base_link above hip ≈ ~0.12 m (from geometry)
-#   → base_link height ≈ 0.87 m
-#
-# Achilles joints (A/B) at 0.0 maps to ankle flat.
-# NOTE: Calibrate these values with view_mujoco.py if robot doesn't stand correctly.
-# ---------------------------------------------------------------------------
 
-# TODO: Verify height 0.87 with `play.py` before long training runs.
-# If robot sinks into terrain → increase to 0.92. If it floats → decrease.
 HOME_KEYFRAME = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 0.87),
     joint_pos={
-        # Legs — slight knee bend for stability
         ".*_hip_pitch_joint":  -0.10,
         ".*_hip_roll_joint":    0.00,
         ".*_hip_yaw_joint":     0.00,
         ".*_knee_joint":        0.30,
-        # Achilles: 0.0 = neutral ankle pitch/roll
         ".*_A_achilles_joint":  0.00,
         ".*_B_achilles_joint":  0.00,
-        # Waist — neutral
         "waist_yaw_joint":      0.00,
         "waist_A_joint":        0.00,
         "waist_B_joint":        0.00,
-        # Arms — G1 style (elbows bent forward, shoulders slightly out)
         ".*_shoulder_pitch_joint": 0.10,
         "left_shoulder_roll_joint": 0.20,
         "right_shoulder_roll_joint": -0.20,
         ".*_shoulder_yaw_joint":   0.00,
-        ".*_elbow_joint":          -0.80,  # Âm là gập về trước đối với HU-D03
+        ".*_elbow_joint":          -0.80,
         ".*_wrist_yaw_joint":      0.00,
         ".*_wrist_pitch_joint":    0.00,
         ".*_hand_yaw_joint":       0.00,
-        # Head
         "head_yaw_joint":          0.00,
         "head_pitch_joint":        0.00,
     },
     joint_vel={".*": 0.0},
 )
 
-# ---------------------------------------------------------------------------
-# Action scale (Using fixed rad scales to prevent high stiffness paralysis)
-# ---------------------------------------------------------------------------
 
 HU_D03_ACTION_SCALE: dict[str, float] = {}
 for _act in HU_D03_ARTICULATION.actuators:
     assert isinstance(_act, BuiltinPositionActuatorCfg)
+    e = _act.effort_limit
+    s = _act.stiffness
+    assert e is not None
+    
+    is_leg = any(name in _act.target_names_expr[0] for name in ["hip", "knee", "achilles"])
+    factor = 1.0 if is_leg else 0.25
+    
     for _n in _act.target_names_expr:
-        # Leg joints (hips, knees, ankles) and waist need realistic range (0.40 rad ≈ 22.9 deg)
-        if any(keyword in _n for keyword in ("hip", "knee", "achilles", "waist")):
-            HU_D03_ACTION_SCALE[_n] = 0.40
-        else:
-            HU_D03_ACTION_SCALE[_n] = 0.30
+        HU_D03_ACTION_SCALE[_n] = factor * e / s
 
-
-# ---------------------------------------------------------------------------
-# Entity config factory
-# ---------------------------------------------------------------------------
 
 def get_hu_d03_robot_cfg() -> EntityCfg:
-    """Return a fresh HU_D03 EntityCfg (call each time to avoid mutation)."""
+    """"""
     return EntityCfg(
         init_state=HOME_KEYFRAME,
         collisions=(),

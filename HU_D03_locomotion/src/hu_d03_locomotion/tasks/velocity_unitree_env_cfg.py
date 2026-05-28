@@ -1,8 +1,4 @@
-"""Unitree-Style dynamic environment configurations for HU_D03.
-
-This module layers Unitree's cyclic gait rewards, phase observations, and standing still
-pose locks on top of the base HU_D03 task configurations for safe side-by-side comparison.
-"""
+"""Cấu hình môi trường động theo phong cách Unitree cho HU_D03."""
 
 from __future__ import annotations
 
@@ -21,41 +17,38 @@ from hu_d03_locomotion.tasks.velocity_env_cfg import (
 
 
 def _apply_unitree_overrides(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
-    """Helper to inject Unitree-specific phase observations and rewards into a config."""
-    # Clone the config to prevent modifying the base task in-place
+    """Áp dụng các cấu hình Unitree (quan sát pha, phần thưởng) vào cấu hình môi trường."""
     cfg = copy.deepcopy(cfg)
 
-    # 1. Inject 'phase' Observation [sin(2pi * t/T), cos(2pi * t/T)]
     cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
         func=mdp_unitree.phase,
-        params={"period": 0.6, "command_name": "twist"},
+        params={"period": 0.65, "command_name": "twist"},
     )
     cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
         func=mdp_unitree.phase,
-        params={"period": 0.6, "command_name": "twist"},
+        params={"period": 0.65, "command_name": "twist"},
     )
 
-    # 2. Disable generic foot air time reward in favor of strict phase gait matching
     cfg.rewards.pop("air_time", None)
+    cfg.rewards.pop("foot_swing_height", None)
+    cfg.rewards.pop("foot_slip", None)
 
-    # 3. Add cyclic foot gait reward (Alternating Left/Right Stance/Swing)
     cfg.rewards["foot_gait"] = RewardTermCfg(
         func=mdp_unitree.feet_gait,
         weight=0.5,
         params={
-            "period": 0.6,
-            "offset": [0.0, 0.5],          # 180 degrees out of phase (Trot/Walk)
-            "threshold": 0.56,             # Stance phase ratio
+            "period": 0.65,
+            "offset": [0.0, 0.5],
+            "threshold": 0.56,
             "command_threshold": 0.1,
             "command_name": "twist",
             "sensor_name": "feet_ground_contact",
         }
     )
 
-    # 4. Add standing still joint lock (encourages rigid static standing posture)
     cfg.rewards["stand_still"] = RewardTermCfg(
         func=mdp_unitree.stand_still,
-        weight=-1.0,                       # Penalize posture errors at zero velocity
+        weight=-1.0,
         params={
             "command_name": "twist",
             "command_threshold": 0.1,
@@ -67,12 +60,12 @@ def _apply_unitree_overrides(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
 
 
 def hu_d03_flat_unitree_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-    """HU_D03 Flat-terrain configuration with Unitree-style cyclic gait."""
+    """Cấu hình môi trường phẳng với chu kỳ dáng đi Unitree."""
     base_cfg = get_base_flat_cfg(play=play)
     return _apply_unitree_overrides(base_cfg)
 
 
 def hu_d03_rough_unitree_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-    """HU_D03 Rough-terrain configuration with Unitree-style cyclic gait."""
+    """Cấu hình môi trường gồ ghề với chu kỳ dáng đi Unitree."""
     base_cfg = get_base_rough_cfg(play=play)
     return _apply_unitree_overrides(base_cfg)

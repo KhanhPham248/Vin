@@ -1,7 +1,4 @@
-"""Unitree-Style PPO runner configurations for HU_D03.
-
-Defines isolated experiment folders for side-by-side PPO comparison in TensorBoard.
-"""
+"""Cấu hình PPO runner theo phong cách Unitree cho HU_D03."""
 
 from __future__ import annotations
 
@@ -13,7 +10,7 @@ from hu_d03_locomotion.tasks.rl_cfg import (
 
 
 def hu_d03_flat_unitree_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """PPO runner configuration for Flat Unitree-style environment."""
+    """Cấu hình PPO cho môi trường mặt phẳng (phong cách Unitree)."""
     cfg = get_base_flat_runner_cfg()
     cfg.experiment_name = "hu_d03_flat_unitree"
     cfg.wandb_project = "hu_d03_locomotion_unitree"
@@ -21,7 +18,7 @@ def hu_d03_flat_unitree_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
 
 
 def hu_d03_rough_unitree_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """PPO runner configuration for Rough Unitree-style environment."""
+    """Cấu hình PPO cho môi trường gồ ghề (phong cách Unitree)."""
     cfg = get_base_rough_runner_cfg()
     cfg.experiment_name = "hu_d03_rough_unitree"
     cfg.wandb_project = "hu_d03_locomotion_unitree"
