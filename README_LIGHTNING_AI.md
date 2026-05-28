@@ -24,18 +24,17 @@ cd Vin/HU_D03_locomotion
 
 ## 2. Các Task Training Có Sẵn
 
-Có **4 task** được đăng ký, chia thành 2 loại chính:
+Có **2 task** được đăng ký (đều đã được tích hợp mặc định cấu hình dáng đi Unitree tối ưu nhất):
 
-| Task ID | Loại | Địa hình | WandB Project | Mô tả |
-|---|---|---|---|---|
-| `Mjlab-Velocity-Flat-HuD03` | **Standard** | Flat | `hu_d03_locomotion` | Task chính, bắt đầu tại đây |
-| `Mjlab-Velocity-Flat-HuD03-Unitree` | **Unitree** | Flat | `hu_d03_locomotion_unitree` | Thêm phase gait + stand_still penalty |
-| `Mjlab-Velocity-Rough-HuD03` | Standard | Rough | `hu_d03_locomotion` | Sau khi flat thành công |
-| `Mjlab-Velocity-Rough-HuD03-Unitree` | Unitree | Rough | `hu_d03_locomotion_unitree` | Sau khi flat unitree thành công |
+| Task ID | Địa hình | WandB Project | Mô tả |
+|---|---|---|---|
+| `Mjlab-Velocity-Flat-HuD03` | Flat (Phẳng) | `hu_d03_locomotion_unitree` | Task chạy trên mặt phẳng, huấn luyện nhanh |
+| `Mjlab-Velocity-Rough-HuD03` | Rough (Gồ ghề) | `hu_d03_locomotion_unitree` | Task chạy trên địa hình phức tạp, gồ ghề |
 
-> **Sự khác biệt Standard vs Unitree:**
-> - **Standard**: Dùng `feet_air_time_touchdown` reward (chỉ thưởng tại touchdown).
-> - **Unitree**: Thêm phase observation `[sin, cos]` + `foot_gait` cyclic reward + `stand_still` penalty.
+> **Đặc điểm của phiên bản Unitree tối ưu:**
+> - Thêm phase observation `[sin, cos]` (chu kỳ dáng đi) giúp robot phối hợp chuyển động chân mượt mà.
+> - Cấu hình `foot_gait` cyclic reward (period `0.65`) giúp robot định hình bước đi đối xứng ổn định.
+> - Tối ưu `stand_still` penalty bằng cách chỉ áp dụng lên các joint được kích hoạt (`ACTUATED_JOINT_NAMES`).
 
 ---
 
@@ -43,34 +42,29 @@ Có **4 task** được đăng ký, chia thành 2 loại chính:
 
 Để tránh việc tiến trình bị ngắt do lỗi mạng hoặc đóng trình duyệt, chúng ta phải chạy lệnh trong một môi trường ảo có tên là `tmux`.
 
-### Chạy 1 task (Standard Flat)
+### Chạy Task Flat (Mặt phẳng)
 
 ```bash
-# Tạo session tmux tên "standard"
-tmux new -s standard
+# Tạo session tmux tên "hud03_flat"
+tmux new -s hud03_flat
 
-# Bên trong tmux — chạy Standard Flat
+# Bên trong tmux — chạy Flat Task
 uv run python scripts/train.py Mjlab-Velocity-Flat-HuD03 --env.scene.num-envs 8192
 ```
 
-### Chạy 2 task song song (Standard + Unitree để so sánh)
+### Chạy Task Rough (Gồ ghề)
 
 ```bash
-# Session 1 — Standard Flat
-tmux new -s standard
-uv run python scripts/train.py Mjlab-Velocity-Flat-HuD03 --env.scene.num-envs 4096
-# Detach: Ctrl+B → D
+# Tạo session tmux tên "hud03_rough"
+tmux new -s hud03_rough
 
-# Session 2 — Unitree Flat
-tmux new -s unitree
-uv run python scripts/train.py Mjlab-Velocity-Flat-HuD03-Unitree --env.scene.num-envs 4096
-# Detach: Ctrl+B → D
+# Bên trong tmux — chạy Rough Task
+uv run python scripts/train.py Mjlab-Velocity-Rough-HuD03 --env.scene.num-envs 8192
 ```
 
-> **Lưu ý VRAM khi chạy song song:**
-> - T4 (16GB): dùng `--env.scene.num-envs 4096` cho mỗi task (tổng ~12-14GB).
-> - L4 (24GB): có thể dùng `--env.scene.num-envs 8192` cho mỗi task.
-
+> **Lưu ý số lượng môi trường (VRAM):**
+> - GPU T4 (16GB): nên dùng `--env.scene.num-envs 4096` để đảm bảo ổn định không bị OOM.
+> - GPU L4 (24GB) hoặc A10G: thoải mái dùng `--env.scene.num-envs 8192`.
 
 ---
 
@@ -91,17 +85,18 @@ Bây giờ bạn có thể tắt tab trình duyệt, tắt máy, đi ngủ. Serv
 Bất cứ lúc nào bạn quay lại Lightning AI, muốn xem robot đã học được tới Epoch thứ bao nhiêu, chỉ cần mở Terminal lên và gõ:
 
 ```bash
-tmux attach -t standard    # xem standard
-tmux attach -t unitree     # xem unitree
+tmux attach -t hud03_flat    # xem tiến trình Flat
+tmux attach -t hud03_rough   # xem tiến trình Rough
 ```
 
 Màn hình Terminal đang chạy dở hôm trước sẽ tự động hiện lại nguyên vẹn.
 
 ---
 
-## 6. (Mẹo) Huỷ tiến trình nếu lỡ bị kẹt
-Nếu bạn lỡ bấm linh tinh hoặc muốn hủy toàn bộ cái `tmux` tên là "training" này để làm lại từ đầu:
+## 6. (Mẹo) Huỷ tiến trình
+
+Nếu bạn muốn dừng huấn luyện để sửa đổi cấu hình hoặc làm lại từ đầu:
 ```bash
-tmux kill-session -t standard
-tmux kill-session -t unitree
+tmux kill-session -t hud03_flat
+tmux kill-session -t hud03_rough
 ```
